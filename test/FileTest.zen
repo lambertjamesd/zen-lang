@@ -1,0 +1,8 @@
+
+type StructureType [a: u8, b: u8]
+
+type FunctionType [a:u8] => [b:u8]
+
+func TestFunc [a: u8] => void {
+    
+}

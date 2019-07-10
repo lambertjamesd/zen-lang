@@ -1,0 +1,8 @@
+
+type ArrayType [...u8]
+
+func Max [elements:...i32] => [i32] {
+    var result = 0
+    foreach result += in elements
+    return result
+}

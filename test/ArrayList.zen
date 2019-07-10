@@ -1,0 +1,25 @@
+
+type ArrayList(T) [
+    mut data: []T,
+    mut length: u32,
+] where Len(data) >= length
+
+func Len(T)[array: ArrayList(T)] => u32 {
+    return array.length
+}
+
+func Append(T)[array: ArrayList(T), value:T] => void 
+    where post array.length = array.length + 1 
+{
+    if (Len(array.data) == 0)
+    {
+        array.data = []T(4)
+    }
+    else if (Len(array.data) == array.data.length)
+    {
+        array.data = []T(Len(array.data) * 2, array.data)
+    }
+
+    array.data[array.length] = value
+    array.length = array.length + 1
+}

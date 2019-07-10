@@ -1,0 +1,6 @@
+
+func test void => [u8] => [u8] {
+    return [a:u8] => [u8] {
+        return a + 1
+    }
+}
