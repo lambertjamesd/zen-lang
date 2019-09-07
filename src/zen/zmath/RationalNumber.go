@@ -1,8 +1,8 @@
 package zmath
 
 type RationalNumberi64 struct {
-	numerator   int64
-	denominator int64
+	Numerator   int64
+	Denominator int64
 }
 
 func Ri64Fromi64(value int64) RationalNumberi64 {
@@ -66,47 +66,72 @@ func GcdRi64(a int64, b int64) int64 {
 }
 
 func (number RationalNumberi64) SimplifyRi64() RationalNumberi64 {
-	gdc := GcdRi64(number.numerator, number.denominator)
+	gdc := GcdRi64(number.Numerator, number.Denominator)
 
-	if number.denominator < 0 {
+	if number.Denominator < 0 {
 		gdc = -gdc
 	}
 
 	if gdc != 0 {
-		number.numerator /= gdc
-		number.denominator /= gdc
+		number.Numerator /= gdc
+		number.Denominator /= gdc
 	} else {
-		number.numerator = Signi64(number.numerator)
-		number.denominator = Signi64(number.denominator)
+		number.Numerator = Signi64(number.Numerator)
+		number.Denominator = Signi64(number.Denominator)
 	}
 
 	return number
 }
 
+func AbsRi64(a RationalNumberi64) RationalNumberi64 {
+	if a.Numerator < 0 {
+		return RationalNumberi64{
+			-a.Numerator,
+			a.Denominator,
+		}
+	} else {
+		return a
+	}
+}
+
 func AddRi64(a RationalNumberi64, b RationalNumberi64) RationalNumberi64 {
 	return RationalNumberi64{
-		a.numerator*b.denominator + b.numerator*a.denominator,
-		a.denominator * b.denominator,
+		a.Numerator*b.Denominator + b.Numerator*a.Denominator,
+		a.Denominator * b.Denominator,
 	}
 }
 
 func SubRi64(a RationalNumberi64, b RationalNumberi64) RationalNumberi64 {
 	return RationalNumberi64{
-		a.numerator*b.denominator - b.numerator*a.denominator,
-		a.denominator * b.denominator,
+		a.Numerator*b.Denominator - b.Numerator*a.Denominator,
+		a.Denominator * b.Denominator,
 	}
 }
 
 func MulRi64(a RationalNumberi64, b RationalNumberi64) RationalNumberi64 {
 	return RationalNumberi64{
-		a.numerator * b.numerator,
-		a.denominator * b.denominator,
+		a.Numerator * b.Numerator,
+		a.Denominator * b.Denominator,
+	}
+}
+
+func Muli64(a RationalNumberi64, scalar int64) RationalNumberi64 {
+	return RationalNumberi64{
+		a.Numerator * scalar,
+		a.Denominator,
 	}
 }
 
 func DivRi64(a RationalNumberi64, b RationalNumberi64) RationalNumberi64 {
 	return RationalNumberi64{
-		a.numerator * b.denominator,
-		a.denominator * b.numerator,
+		a.Numerator * b.Denominator,
+		a.Denominator * b.Numerator,
+	}
+}
+
+func InvRi64(a RationalNumberi64) RationalNumberi64 {
+	return RationalNumberi64{
+		a.Denominator,
+		a.Numerator,
 	}
 }

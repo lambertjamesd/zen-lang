@@ -9,13 +9,13 @@ func checkMatrix(t *testing.T, actual *Matrixi64, expected []RationalNumberi64) 
 		for col := uint32(0); col < actual.Cols; col = col + 1 {
 			var actualVal = actual.GetEntryi64(row, col)
 			var expectedVal = expected[row*actual.Cols+col]
-			if actualVal.numerator != expectedVal.numerator || actualVal.denominator != expectedVal.denominator {
+			if actualVal.Numerator != expectedVal.Numerator || actualVal.Denominator != expectedVal.Denominator {
 				t.Errorf(
 					"Expected %d/%d to equal %d/%d at %d %d",
-					expectedVal.numerator,
-					expectedVal.denominator,
-					actualVal.numerator,
-					actualVal.denominator,
+					expectedVal.Numerator,
+					expectedVal.Denominator,
+					actualVal.Numerator,
+					actualVal.Denominator,
 					row,
 					col,
 				)

@@ -5,8 +5,8 @@ import (
 )
 
 func checkValue(t *testing.T, actual RationalNumberi64, expected RationalNumberi64) {
-	if actual.numerator != expected.numerator || actual.denominator != expected.denominator {
-		t.Errorf("Expected %d/%d to equal %d/%d", expected.numerator, expected.denominator, actual.numerator, actual.denominator)
+	if actual.Numerator != expected.Numerator || actual.Denominator != expected.Denominator {
+		t.Errorf("Expected %d/%d to equal %d/%d", expected.Numerator, expected.Denominator, actual.Numerator, actual.Denominator)
 	}
 }
 
