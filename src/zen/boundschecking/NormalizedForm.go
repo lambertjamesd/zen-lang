@@ -1,5 +1,9 @@
 package boundschecking
 
+import (
+	"zen/zmath"
+)
+
 type NormalizedNode interface {
 	GetHashCode() int32
 	IsEqual(other NormalizedNode) bool
@@ -19,7 +23,8 @@ type ValueReference interface {
 
 type ProductGroup struct {
 	Values         []ValueReference
-	ConstantScalar int64
+	uniqueID	   uint32
+	ConstantScalar zmath.RationalNumberi64
 }
 
 type SumGroup struct {
