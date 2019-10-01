@@ -43,11 +43,15 @@ const (
 	GTEqToken        TokenType = 30
 )
 
+type SourceLocation struct {
+	Source *source.Source
+	At     int
+}
+
 type Token struct {
 	TokenType TokenType
 	Value     string
-	Source    *source.Source
-	At        int
+	At        SourceLocation
 }
 
 type TokenizeResult struct {
@@ -215,8 +219,10 @@ func Tokenize(src *source.Source) (result TokenizeResult) {
 				tokens = append(tokens, Token{
 					token,
 					textSource[currentTokenStart:index],
-					src,
-					currentTokenStart,
+					SourceLocation{
+						src,
+						currentTokenStart,
+					},
 				})
 			}
 
@@ -231,13 +237,17 @@ func Tokenize(src *source.Source) (result TokenizeResult) {
 	tokens = append(tokens, Token{
 		lastToken,
 		textSource[currentTokenStart:len(textSource)],
-		src,
-		currentTokenStart,
+		SourceLocation{
+			src,
+			currentTokenStart,
+		},
 	}, Token{
 		EOFToken,
 		"",
-		src,
-		len(textSource),
+		SourceLocation{
+			src,
+			len(textSource),
+		},
 	})
 
 	return TokenizeResult{

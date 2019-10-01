@@ -7,17 +7,17 @@ import (
 )
 
 type ParseError struct {
-	atToken *tokenizer.Token
+	At      tokenizer.SourceLocation
 	message string
 }
 
-func CreateError(atToken *tokenizer.Token, message string) (result ParseError) {
+func CreateError(at tokenizer.SourceLocation, message string) (result ParseError) {
 	return ParseError{
-		atToken,
+		at,
 		message,
 	}
 }
 
 func FormatError(parseError ParseError) (result string) {
-	return fmt.Sprintf("%s\n%s", parseError.message, source.FormatLine(parseError.atToken.Source, parseError.atToken.At))
+	return fmt.Sprintf("%s\n%s", parseError.message, source.FormatLine(parseError.At.Source, parseError.At.At))
 }

@@ -1,5 +1,9 @@
 package zmath
 
+import (
+	"strconv"
+)
+
 type RationalNumberi64 struct {
 	Numerator   int64
 	Denominator int64
@@ -83,6 +87,26 @@ func (number RationalNumberi64) SimplifyRi64() RationalNumberi64 {
 	return number
 }
 
+func (number RationalNumberi64) IsZero() bool {
+	return number.Numerator == 0
+}
+
+func (number RationalNumberi64) IsOne() bool {
+	return number.Numerator == number.Denominator
+}
+
+func (number RationalNumberi64) ToString() string {
+	if number.Denominator == 0 {
+		return "NaN{" + strconv.Itoa(int(number.Numerator)) + "}"
+	} else if number.Numerator == 0 {
+		return "0"
+	} else if number.Denominator == 1 {
+		return strconv.Itoa(int(number.Numerator))
+	} else {
+		return strconv.Itoa(int(number.Numerator)) + "/" + strconv.Itoa(int(number.Denominator))
+	}
+}
+
 func AbsRi64(a RationalNumberi64) RationalNumberi64 {
 	if a.Numerator < 0 {
 		return RationalNumberi64{
@@ -134,4 +158,15 @@ func InvRi64(a RationalNumberi64) RationalNumberi64 {
 		a.Denominator,
 		a.Numerator,
 	}
+}
+
+func NegateRi64(a RationalNumberi64) RationalNumberi64 {
+	return RationalNumberi64{
+		-a.Numerator,
+		a.Denominator,
+	}
+}
+
+func (a RationalNumberi64) Compare(b RationalNumberi64) int32 {
+	return int32(a.Numerator*b.Denominator - b.Numerator*a.Denominator)
 }

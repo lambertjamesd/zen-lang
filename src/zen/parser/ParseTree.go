@@ -22,6 +22,7 @@ func CreateScope() *Scope {
 type Visitor interface {
 	VisitIdentifier(id *Identifier)
 	VisitNumber(number *Number)
+	VisitUnaryExpression(exp *UnaryExpression)
 	VisitBinaryExpression(exp *BinaryExpression)
 	VisitFunction(function *Function)
 	VisitIf(ifStatement *IfStatement)
@@ -108,6 +109,20 @@ func (node *BinaryExpression) Accept(visitor Visitor) {
 }
 
 func (node *BinaryExpression) GetType() TypeNode {
+	return node.Type
+}
+
+type UnaryExpression struct {
+	Expr     Expression
+	Operator *tokenizer.Token
+	Type     TypeNode
+}
+
+func (node *UnaryExpression) Accept(visitor Visitor) {
+	visitor.VisitUnaryExpression(node)
+}
+
+func (node *UnaryExpression) GetType() TypeNode {
 	return node.Type
 }
 

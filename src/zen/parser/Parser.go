@@ -62,7 +62,7 @@ func optionalIdentifier(state *parseState, value string) (result *tokenizer.Toke
 func expect(parseResult *parseResult, state *parseState, tokenType tokenizer.TokenType) (result *tokenizer.Token) {
 	var maybeToken = optional(state, tokenType)
 	if maybeToken == nil {
-		parseResult.errors = append(parseResult.errors, CreateError(peek(state, 0), "Unexpected token '"+peek(state, 0).Value+"'"))
+		parseResult.errors = append(parseResult.errors, CreateError(peek(state, 0).At, "Unexpected token '"+peek(state, 0).Value+"'"))
 		advance(state)
 	}
 
@@ -72,7 +72,7 @@ func expect(parseResult *parseResult, state *parseState, tokenType tokenizer.Tok
 func expectIdentifier(parseResult *parseResult, state *parseState, value string) (result *tokenizer.Token) {
 	var maybeToken = optional(state, tokenizer.IDToken)
 	if maybeToken == nil || maybeToken.Value != value {
-		parseResult.errors = append(parseResult.errors, CreateError(peek(state, 0), "Unexpected token '"+peek(state, 0).Value+"' expected '"+value+"'"))
+		parseResult.errors = append(parseResult.errors, CreateError(peek(state, 0).At, "Unexpected token '"+peek(state, 0).Value+"' expected '"+value+"'"))
 		if maybeToken == nil {
 			advance(state)
 		}
@@ -141,7 +141,7 @@ func parseSingleType(parseResult *parseResult, state *parseState) (result TypeEx
 
 		return result, true
 	} else {
-		parseResult.errors = append(parseResult.errors, CreateError(next, "Expcted type got '"+next.Value+"'"))
+		parseResult.errors = append(parseResult.errors, CreateError(next.At, "Expcted type got '"+next.Value+"'"))
 		return nil, false
 	}
 
@@ -354,15 +354,37 @@ func parseSingleExpression(parseResult *parseResult, state *parseState) (result 
 		return parseIdentifier(parseResult, state)
 	} else if next.TokenType == tokenizer.NumberToken {
 		return parseNumber(parseResult, state)
+	} else if next.TokenType == tokenizer.OpenParenToken {
+		advance(state)
+		result, ok := parseExpression(parseResult, state)
+		ok = ok && expect(parseResult, state, tokenizer.CloseParenToken) != nil
+		return result, ok
 	} else {
 		advance(state)
-		parseResult.errors = append(parseResult.errors, CreateError(next, "Expected expression got '"+next.Value+"'"))
+		parseResult.errors = append(parseResult.errors, CreateError(next.At, "Expected expression got '"+next.Value+"'"))
 		return nil, false
 	}
 }
 
 func parseUnaryExpression(parseResult *parseResult, state *parseState) (result Expression, okResult bool) {
-	return parseSingleExpression(parseResult, state)
+	var maybeOperator = peek(state, 0)
+
+	if maybeOperator.TokenType == tokenizer.MinusToken {
+		advance(state)
+		expr, ok := parseUnaryExpression(parseResult, state)
+
+		if !ok {
+			return nil, false
+		} else {
+			return &UnaryExpression{
+				expr,
+				maybeOperator,
+				&UndefinedType{},
+			}, true
+		}
+	} else {
+		return parseSingleExpression(parseResult, state)
+	}
 }
 
 func parseBinaryExpression(parseResult *parseResult, state *parseState, precedence expressionOperatorPrecedence) (result Expression, okResult bool) {
@@ -594,7 +616,7 @@ func parseFileDefinition(parseResult *parseResult, state *parseState) (result *F
 			}
 		} else {
 			if !inError {
-				parseResult.errors = append(parseResult.errors, CreateError(next, "Unexpected token '"+next.Value+"'"))
+				parseResult.errors = append(parseResult.errors, CreateError(next.At, "Unexpected token '"+next.Value+"'"))
 			}
 			advance(state)
 

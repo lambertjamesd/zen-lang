@@ -1,6 +1,10 @@
 package zmath
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
 
 type Matrixi64 struct {
 	data        []RationalNumberi64
@@ -78,7 +82,7 @@ func (matrix *Matrixi64) Resize(Rows uint32, Cols uint32) {
 	colCapacity := PowOfTwoi32(Cols)
 
 	if rowCapacity > matrix.rowCapacity || colCapacity > matrix.colCapacity {
-		newData := make([]RationalNumberi64, rowCapacity, colCapacity)
+		newData := make([]RationalNumberi64, rowCapacity*colCapacity)
 
 		for row := uint32(0); row < matrix.Rows; row = row + 1 {
 			for col := uint32(0); col < matrix.Cols; col = col + 1 {
@@ -142,7 +146,7 @@ func (a *Matrixi64) Muli64(b *Matrixi64) (result *Matrixi64, err error) {
 				rowValue = AddRi64(rowValue, MulRi64(a.GetEntryi64(row, span), b.GetEntryi64(span, col)))
 			}
 
-			rowValue.SimplifyRi64()
+			rowValue = rowValue.SimplifyRi64()
 
 			result.SetEntryi64(row, col, rowValue)
 		}
@@ -202,4 +206,25 @@ func (matrix *Matrixi64) Copy() *Matrixi64 {
 	}
 
 	return result
+}
+
+func (matrix *Matrixi64) String() string {
+	var result strings.Builder
+
+	result.WriteString("Matrix " + strconv.Itoa(int(matrix.Rows)) + "x" + strconv.Itoa(int(matrix.Cols)) + "\n")
+
+	for row := uint32(0); row < matrix.Rows; row = row + 1 {
+		result.WriteString("|")
+		for col := uint32(0); col < matrix.Cols; col = col + 1 {
+			var asString = matrix.GetEntryi64(row, col).ToString()
+
+			for index := len(asString); index < 8; index = index + 1 {
+				result.WriteString(" ")
+			}
+			result.WriteString(asString + " ")
+		}
+		result.WriteString("|\n")
+	}
+
+	return result.String()
 }

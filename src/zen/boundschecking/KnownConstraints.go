@@ -1,20 +1,19 @@
 package boundschecking
 
 import (
-	"zen/zmath"
 	"errors"
+	"zen/zmath"
 )
 
 const UNUSED = ^uint32(0)
 
 type CheckResult struct {
 	IsTrue bool
-
 }
 
 type KnownConstraints struct {
-	equationColumns []*SumGroup
-	productGroupRows map[uint32]uint32
+	equationColumns        []*SumGroup
+	productGroupRows       map[uint32]uint32
 	equationTransformation *zmath.Matrixi64
 }
 
@@ -32,7 +31,7 @@ func NewKnownConstraints() *KnownConstraints {
 
 func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result CheckResult, err error) {
 	for _, productGroup := range equation.ProductGroups {
-		if constraints.productGroupRows[productGroup.uniqueID] == 0 {
+		if constraints.productGroupRows[productGroup.Values.uniqueID] == 0 {
 			return CheckResult{
 				false,
 			}, nil
@@ -48,9 +47,15 @@ func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result C
 		}, err
 	}
 
+	if transformedVector.GetEntryi64(0, 0).Numerator < 0 {
+		return CheckResult{
+			false,
+		}, nil
+	}
+
 	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index - 1] == nil && entryValue != 0 {
+		if constraints.equationColumns[index-1] == nil && entryValue != 0 {
 			return CheckResult{
 				false,
 			}, nil
@@ -84,7 +89,7 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 
 	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index - 1] == nil && entryValue != 0 {
+		if constraints.equationColumns[index-1] == nil && entryValue != 0 {
 			blankIndex = index
 			break
 		} else if entryValue < 0 {
@@ -95,6 +100,7 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 	}
 
 	if blankIndex != UNUSED {
+		constraints.equationColumns[blankIndex-1] = equation
 		constraints.rowReduceVector(transformedVector, blankIndex)
 		return true, nil
 	} else if negativeCount == 0 {
@@ -110,8 +116,9 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 			}
 		}
 
+		constraints.equationColumns[positiveIndex-1] = equation
 		constraints.rowReduceVector(transformedVector, positiveIndex)
-		
+
 		return true, nil
 	} else {
 		return false, errors.New("Not implemented yet")
@@ -137,15 +144,16 @@ func (constraints *KnownConstraints) rowReduceVector(vector *zmath.Matrixi64, pi
 
 func (constraints *KnownConstraints) extractColumnVector(equation *SumGroup) *zmath.Matrixi64 {
 	for _, productGroup := range equation.ProductGroups {
-		constraints.ensureProductGroup(productGroup.uniqueID)
+		constraints.ensureProductGroup(productGroup.Values.uniqueID)
 	}
 
 	var result = zmath.NewMatrixi64(constraints.equationTransformation.Cols, 1)
+	result.InitialzeIdentityi64()
 
 	result.SetEntryi64(0, 0, zmath.Ri64Fromi64(equation.ConstantOffset))
-	
+
 	for _, productGroup := range equation.ProductGroups {
-		var index = constraints.productGroupRows[productGroup.uniqueID]
+		var index = constraints.productGroupRows[productGroup.Values.uniqueID]
 		result.SetEntryi64(index, 0, productGroup.ConstantScalar)
 	}
 
@@ -157,8 +165,8 @@ func (constraints *KnownConstraints) ensureProductGroup(productGroupID uint32) u
 
 	if result == 0 {
 		constraints.equationColumns = append(constraints.equationColumns, nil)
-		constraints.productGroupRows[result] = constraints.equationTransformation.Rows
-		constraints.equationTransformation.Resize(constraints.equationTransformation.Rows + 1, constraints.equationTransformation.Cols + 1)
+		constraints.productGroupRows[productGroupID] = constraints.equationTransformation.Rows
+		constraints.equationTransformation.Resize(constraints.equationTransformation.Rows+1, constraints.equationTransformation.Cols+1)
 	}
 
 	return result
@@ -170,7 +178,7 @@ func (from *KnownConstraints) Copy() *KnownConstraints {
 
 	copy(equationColumns, from.equationColumns)
 
-	for k,v := range from.productGroupRows {
+	for k, v := range from.productGroupRows {
 		productGroupRows[k] = v
 	}
 
@@ -178,5 +186,5 @@ func (from *KnownConstraints) Copy() *KnownConstraints {
 		equationColumns,
 		productGroupRows,
 		from.equationTransformation.Copy(),
-	};
+	}
 }
