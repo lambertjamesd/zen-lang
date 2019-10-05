@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"log"
 	"zen/source"
 	"zen/tokenizer"
 )
@@ -125,6 +126,7 @@ func parseSingleType(parseResult *parseResult, state *parseState) (result TypeEx
 		advance(state)
 		result = &NamedType{
 			next,
+			&UndefinedType{},
 		}
 	} else if next.TokenType == tokenizer.OpenParenToken {
 		advance(state)
@@ -190,6 +192,7 @@ func parseBinaryType(parseResult *parseResult, state *parseState, precedence typ
 			result = &FunctionType{
 				result,
 				right,
+				nil,
 			}
 		case "where":
 			right, ok := parseExpression(parseResult, state)
@@ -199,6 +202,7 @@ func parseBinaryType(parseResult *parseResult, state *parseState, precedence typ
 			}
 
 			result = &WhereType{
+				maybeOperator,
 				result,
 				right,
 			}
@@ -224,13 +228,12 @@ func checkHasNext(state *parseState, closingToken tokenizer.TokenType) (result b
 }
 
 func parseStructureType(parseResult *parseResult, state *parseState) (result *StructureType) {
-	if expect(parseResult, state, tokenizer.OpenSqaureToken) == nil {
+	openToken := expect(parseResult, state, tokenizer.OpenSqaureToken)
+	if openToken == nil {
 		return nil
 	}
 
-	result = &StructureType{
-		nil,
-	}
+	var entries []*StructureNamedEntry = nil
 
 	var hasNext = peek(state, 0).TokenType != tokenizer.CloseSquareToken
 
@@ -244,7 +247,7 @@ func parseStructureType(parseResult *parseResult, state *parseState) (result *St
 				return nil
 			}
 
-			result.Entries = append(result.Entries, &StructureNamedEntry{nil, typeExp, &UndefinedType{}})
+			entries = append(entries, &StructureNamedEntry{nil, typeExp, nil})
 
 			hasNext = checkHasNext(state, tokenizer.CloseSquareToken)
 		}
@@ -269,20 +272,28 @@ func parseStructureType(parseResult *parseResult, state *parseState) (result *St
 			return nil
 		}
 
-		result.Entries = append(result.Entries, &StructureNamedEntry{name, typeExp, &UndefinedType{}})
+		entries = append(entries, &StructureNamedEntry{name, typeExp, nil})
 
 		hasNext = checkHasNext(state, tokenizer.CloseSquareToken)
 	}
 
-	if expect(parseResult, state, tokenizer.CloseSquareToken) == nil {
+	closingToken := expect(parseResult, state, tokenizer.CloseSquareToken)
+
+	if closingToken == nil {
 		return nil
 	}
 
-	return result
+	return &StructureType{
+		openToken,
+		entries,
+		nil,
+		closingToken,
+	}
 }
 
 func parseTypeDefinition(parseResult *parseResult, state *parseState) (result *TypeDefinition) {
-	if expectIdentifier(parseResult, state, "type") == nil {
+	openToken := expectIdentifier(parseResult, state, "type")
+	if openToken == nil {
 		return nil
 	}
 	var name = expect(parseResult, state, tokenizer.IDToken)
@@ -296,6 +307,7 @@ func parseTypeDefinition(parseResult *parseResult, state *parseState) (result *T
 	}
 
 	return &TypeDefinition{
+		openToken,
 		name,
 		typeExp,
 		CreateScope(),
@@ -434,49 +446,59 @@ func parseStatement(parseResult *parseResult, state *parseState) (result Stateme
 
 		if after.TokenType == tokenizer.CloseCurlyToken || after.TokenType == tokenizer.SemicolonToken {
 			return &ReturnStatement{
+				next,
+				nil,
 				nil,
 			}, true
 		}
 
-		var returnValue, ok = parseExpression(parseResult, state)
+		var expressions []Expression = nil
+		var hasNext = true
 
-		if !ok {
-			return nil, false
+		for hasNext {
+			var returnValue, ok = parseExpression(parseResult, state)
+			expressions = append(expressions, returnValue)
+			hasNext = ok && optional(state, tokenizer.CommaToken) != nil
 		}
 
 		return &ReturnStatement{
-			returnValue,
+			next,
+			expressions,
+			nil,
 		}, true
 	}
 
 	return parseExpression(parseResult, state)
 }
 
-func createEmptyBody() *Body {
-	return &Body{
-		nil,
-		&UndefinedType{},
-		CreateScope(),
-	}
-}
-
 func parseBody(parseResult *parseResult, state *parseState) (result *Body) {
-	result = createEmptyBody()
+	openToken := expect(parseResult, state, tokenizer.OpenCurlyToken)
+	var statements []Statement = nil
 
-	if expect(parseResult, state, tokenizer.OpenCurlyToken) == nil {
+	if openToken == nil {
 		return nil
 	}
 
-	for optional(state, tokenizer.CloseCurlyToken) == nil {
+	closeToken := optional(state, tokenizer.CloseCurlyToken)
+
+	for closeToken == nil && peek(state, 0).TokenType != tokenizer.EOFToken {
 		statement, ok := parseStatement(parseResult, state)
+		log.Print("Statement")
 		if !ok {
 			return nil
 		}
 		optional(state, tokenizer.SemicolonToken)
-		result.Statements = append(result.Statements, statement)
+		statements = append(statements, statement)
+		closeToken = optional(state, tokenizer.CloseCurlyToken)
 	}
 
-	return result
+	return &Body{
+		openToken,
+		statements,
+		&UndefinedType{},
+		CreateScope(),
+		closeToken,
+	}
 }
 
 func parseFunction(parseResult *parseResult, state *parseState) (result *Function, okResult bool) {
@@ -496,7 +518,7 @@ func parseFunction(parseResult *parseResult, state *parseState) (result *Functio
 		typeExp,
 		body,
 		CreateScope(),
-		&UndefinedType{},
+		nil,
 	}, true
 }
 
@@ -521,7 +543,9 @@ func parseFunctionDefinition(parseResult *parseResult, state *parseState) (resul
 }
 
 func parseIfStatement(parseResult *parseResult, state *parseState) (result *IfStatement, okResult bool) {
-	if expectIdentifier(parseResult, state, "if") == nil {
+	ifKeyword := expectIdentifier(parseResult, state, "if")
+
+	if ifKeyword == nil {
 		return nil, false
 	}
 
@@ -556,6 +580,7 @@ func parseIfStatement(parseResult *parseResult, state *parseState) (result *IfSt
 			}
 
 			return &IfStatement{
+				ifKeyword,
 				exp,
 				body,
 				elseIf,
@@ -569,6 +594,7 @@ func parseIfStatement(parseResult *parseResult, state *parseState) (result *IfSt
 			}
 
 			return &IfStatement{
+				ifKeyword,
 				exp,
 				body,
 				elseBody,
@@ -578,18 +604,24 @@ func parseIfStatement(parseResult *parseResult, state *parseState) (result *IfSt
 	}
 
 	return &IfStatement{
+		ifKeyword,
 		exp,
 		body,
-		createEmptyBody(),
+		&Body{
+			body.end,
+			nil,
+			&UndefinedType{},
+			CreateScope(),
+			body.end,
+		},
 		&UndefinedType{},
 	}, true
 }
 
 func parseFileDefinition(parseResult *parseResult, state *parseState) (result *FileDefinition) {
-	result = &FileDefinition{
-		nil,
-		CreateScope(),
-	}
+	fileStart := peek(state, 0).At
+
+	var definitions []Definition = nil
 
 	var inError = false
 
@@ -603,7 +635,7 @@ func parseFileDefinition(parseResult *parseResult, state *parseState) (result *F
 				inError = true
 			} else {
 				inError = false
-				result.Definitions = append(result.Definitions, funcDef)
+				definitions = append(definitions, funcDef)
 			}
 		} else if next.Value == "type" {
 			var typeDef = parseTypeDefinition(parseResult, state)
@@ -612,7 +644,7 @@ func parseFileDefinition(parseResult *parseResult, state *parseState) (result *F
 				inError = true
 			} else {
 				inError = false
-				result.Definitions = append(result.Definitions, typeDef)
+				definitions = append(definitions, typeDef)
 			}
 		} else {
 			if !inError {
@@ -624,7 +656,12 @@ func parseFileDefinition(parseResult *parseResult, state *parseState) (result *F
 		}
 	}
 
-	return result
+	return &FileDefinition{
+		fileStart,
+		definitions,
+		CreateScope(),
+		peek(state, 0).At,
+	}
 }
 
 func Parse(src *source.Source) (result *FileDefinition, errors []ParseError) {

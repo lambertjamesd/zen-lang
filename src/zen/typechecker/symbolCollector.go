@@ -51,12 +51,20 @@ func endScope(symbolCollector *symbolCollector) {
 	}
 }
 
+func (symbolCollector *symbolCollector) VisitVoidExpression(expr *parser.VoidExpression) {
+
+}
+
 func (symbolCollector *symbolCollector) VisitIdentifier(id *parser.Identifier) {
 
 }
 
 func (symbolCollector *symbolCollector) VisitNumber(number *parser.Number) {
 
+}
+
+func (symbolCollector *symbolCollector) VisitUnaryExpression(exp *parser.UnaryExpression) {
+	exp.Expr.Accept(symbolCollector)
 }
 
 func (symbolCollector *symbolCollector) VisitBinaryExpression(exp *parser.BinaryExpression) {
@@ -81,20 +89,17 @@ func (symbolCollector *symbolCollector) VisitBody(body *parser.Body) {
 }
 
 func (symbolCollector *symbolCollector) VisitReturn(ret *parser.ReturnStatement) {
-	ret.Expression.Accept(symbolCollector)
+	for _, expr := range ret.ExpressionList {
+		expr.Accept(symbolCollector)
+	}
 }
 
 func (symbolCollector *symbolCollector) VisitNamedType(namedType *parser.NamedType) {
 
 }
 
-func (symbolCollector *symbolCollector) VisitStructureNamedEntry(structureEntry *parser.StructureNamedEntry) {
-	structureEntry.TypeExp.Accept(symbolCollector)
-}
-
 func (symbolCollector *symbolCollector) VisitStructureType(structure *parser.StructureType) {
 	for _, entry := range structure.Entries {
-		symbolCollector.currentReferences.symbols[entry.Name.Value] = entry
 		entry.TypeExp.Accept(symbolCollector)
 	}
 }

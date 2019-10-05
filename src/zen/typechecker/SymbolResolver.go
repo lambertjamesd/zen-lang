@@ -22,12 +22,20 @@ func createSymbolResolver(symbolCollector *symbolCollector) *SymbolResolver {
 	}
 }
 
+func (symbolResolver *SymbolResolver) VisitVoidExpression(id *parser.VoidExpression) {
+
+}
+
 func (symbolResolver *SymbolResolver) VisitIdentifier(id *parser.Identifier) {
 
 }
 
 func (symbolResolver *SymbolResolver) VisitNumber(number *parser.Number) {
 
+}
+
+func (symbolResolver *SymbolResolver) VisitUnaryExpression(exp *parser.UnaryExpression) {
+	exp.Expr.Accept(symbolResolver)
 }
 
 func (symbolResolver *SymbolResolver) VisitBinaryExpression(exp *parser.BinaryExpression) {
@@ -48,15 +56,13 @@ func (symbolResolver *SymbolResolver) VisitBody(body *parser.Body) {
 }
 
 func (symbolResolver *SymbolResolver) VisitReturn(ret *parser.ReturnStatement) {
-	ret.Expression.Accept(symbolResolver)
+	for _, expr := range ret.ExpressionList {
+		expr.Accept(symbolResolver)
+	}
 }
 
 func (symbolResolver *SymbolResolver) VisitNamedType(namedType *parser.NamedType) {
 
-}
-
-func (symbolResolver *SymbolResolver) VisitStructureNamedEntry(structureEntry *parser.StructureNamedEntry) {
-	structureEntry.TypeExp.Accept(symbolResolver)
 }
 
 func (symbolResolver *SymbolResolver) VisitStructureType(structure *parser.StructureType) {

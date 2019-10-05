@@ -41,6 +41,10 @@ func GetSourceContent(source *Source) (result string) {
 	return source.content
 }
 
+func (source *Source) Length() int {
+	return len(source.content)
+}
+
 func FormatLine(source *Source, at int) (message string) {
 	var lineNumber = 0
 	var colNumber = 0

@@ -20,6 +20,7 @@ func CreateScope() *Scope {
 }
 
 type Visitor interface {
+	VisitVoidExpression(id *VoidExpression)
 	VisitIdentifier(id *Identifier)
 	VisitNumber(number *Number)
 	VisitUnaryExpression(exp *UnaryExpression)
@@ -31,7 +32,6 @@ type Visitor interface {
 	VisitReturn(ret *ReturnStatement)
 
 	VisitNamedType(namedType *NamedType)
-	VisitStructureNamedEntry(structureEntry *StructureNamedEntry)
 	VisitStructureType(structure *StructureType)
 	VisitFunctionType(fn *FunctionType)
 	VisitWhereType(where *WhereType)
@@ -42,10 +42,13 @@ type Visitor interface {
 }
 
 type ParseNode interface {
+	Accept(visitor Visitor)
+	Begin() tokenizer.SourceLocation
+	End() tokenizer.SourceLocation
 }
 
 type Statement interface {
-	Accept(visitor Visitor)
+	ParseNode
 }
 
 type Expression interface {
@@ -54,21 +57,41 @@ type Expression interface {
 }
 
 type TypeExpression interface {
-	Accept(visitor Visitor)
+	ParseNode
 }
 
 type TypeSymbolDefinition interface {
-	Accept(visitor Visitor)
+	ParseNode
 	GetType() TypeNode
 }
 
 type SymbolDefinition interface {
-	Accept(visitor Visitor)
+	ParseNode
 	GetType() TypeNode
 }
 
 type Definition interface {
-	Accept(visitor Visitor)
+	ParseNode
+}
+
+type VoidExpression struct {
+	At tokenizer.SourceLocation
+}
+
+func (node *VoidExpression) Accept(visitor Visitor) {
+	visitor.VisitVoidExpression(node)
+}
+
+func (node *VoidExpression) GetType() TypeNode {
+	return &VoidType{}
+}
+
+func (node *VoidExpression) Begin() tokenizer.SourceLocation {
+	return node.At
+}
+
+func (node *VoidExpression) End() tokenizer.SourceLocation {
+	return node.At
 }
 
 type Identifier struct {
@@ -84,6 +107,14 @@ func (node *Identifier) GetType() TypeNode {
 	return node.Type
 }
 
+func (node *Identifier) Begin() tokenizer.SourceLocation {
+	return node.Token.At
+}
+
+func (node *Identifier) End() tokenizer.SourceLocation {
+	return node.Token.End()
+}
+
 type Number struct {
 	Token *tokenizer.Token
 	Type  TypeNode
@@ -95,6 +126,14 @@ func (node *Number) Accept(visitor Visitor) {
 
 func (node *Number) GetType() TypeNode {
 	return node.Type
+}
+
+func (node *Number) Begin() tokenizer.SourceLocation {
+	return node.Token.At
+}
+
+func (node *Number) End() tokenizer.SourceLocation {
+	return node.Token.End()
 }
 
 type BinaryExpression struct {
@@ -112,6 +151,14 @@ func (node *BinaryExpression) GetType() TypeNode {
 	return node.Type
 }
 
+func (node *BinaryExpression) Begin() tokenizer.SourceLocation {
+	return node.Left.Begin()
+}
+
+func (node *BinaryExpression) End() tokenizer.SourceLocation {
+	return node.Right.End()
+}
+
 type UnaryExpression struct {
 	Expr     Expression
 	Operator *tokenizer.Token
@@ -126,10 +173,20 @@ func (node *UnaryExpression) GetType() TypeNode {
 	return node.Type
 }
 
+func (node *UnaryExpression) Begin() tokenizer.SourceLocation {
+	return node.Operator.At
+}
+
+func (node *UnaryExpression) End() tokenizer.SourceLocation {
+	return node.Expr.End()
+}
+
 type Body struct {
+	open       *tokenizer.Token
 	Statements []Statement
 	Type       TypeNode
 	Scope      *Scope
+	end        *tokenizer.Token
 }
 
 func (node *Body) Accept(visitor Visitor) {
@@ -140,7 +197,16 @@ func (node *Body) GetType() TypeNode {
 	return node.Type
 }
 
+func (node *Body) Begin() tokenizer.SourceLocation {
+	return node.open.At
+}
+
+func (node *Body) End() tokenizer.SourceLocation {
+	return node.end.End()
+}
+
 type IfStatement struct {
+	ifKeyword   *tokenizer.Token
 	Expresssion Expression
 	Body        *Body
 	ElseBody    Expression
@@ -155,52 +221,106 @@ func (node *IfStatement) Accept(visitor Visitor) {
 	visitor.VisitIf(node)
 }
 
+func (node *IfStatement) Begin() tokenizer.SourceLocation {
+	return node.ifKeyword.At
+}
+
+func (node *IfStatement) End() tokenizer.SourceLocation {
+	if node.ElseBody != nil {
+		return node.ElseBody.End()
+	} else {
+		return node.Body.End()
+	}
+}
+
 type NamedType struct {
 	Token *tokenizer.Token
+	Type  TypeNode
 }
 
 func (node *NamedType) Accept(visitor Visitor) {
 	visitor.VisitNamedType(node)
 }
 
+func (node *NamedType) Begin() tokenizer.SourceLocation {
+	return node.Token.At
+}
+
+func (node *NamedType) End() tokenizer.SourceLocation {
+	return node.Token.End()
+}
+
 type StructureNamedEntry struct {
 	Name    *tokenizer.Token
 	TypeExp TypeExpression
-	Type    TypeNode
+	Type    *StructureNamedEntryType
 }
 
-func (node *StructureNamedEntry) Accept(visitor Visitor) {
-	visitor.VisitStructureNamedEntry(node)
+func (node *StructureNamedEntry) Begin() tokenizer.SourceLocation {
+	if node.Name != nil {
+		return node.Name.At
+	} else {
+		return node.TypeExp.Begin()
+	}
 }
 
-func (node *StructureNamedEntry) GetType() TypeNode {
-	return node.Type
+func (node *StructureNamedEntry) End() tokenizer.SourceLocation {
+	return node.TypeExp.End()
 }
 
 type StructureType struct {
+	open    *tokenizer.Token
 	Entries []*StructureNamedEntry
+	Type    *StructureTypeType
+	close   *tokenizer.Token
 }
 
 func (node *StructureType) Accept(visitor Visitor) {
 	visitor.VisitStructureType(node)
 }
 
+func (node *StructureType) Begin() tokenizer.SourceLocation {
+	return node.open.At
+}
+
+func (node *StructureType) End() tokenizer.SourceLocation {
+	return node.close.End()
+}
+
 type FunctionType struct {
 	Input  TypeExpression
 	Output TypeExpression
+	Type   *FunctionTypeType
 }
 
 func (node *FunctionType) Accept(visitor Visitor) {
 	visitor.VisitFunctionType(node)
 }
 
+func (node *FunctionType) Begin() tokenizer.SourceLocation {
+	return node.Input.Begin()
+}
+
+func (node *FunctionType) End() tokenizer.SourceLocation {
+	return node.Output.End()
+}
+
 type WhereType struct {
-	TypeExp  TypeExpression
-	WhereExp Expression
+	whereKeyword *tokenizer.Token
+	TypeExp      TypeExpression
+	WhereExp     Expression
 }
 
 func (node *WhereType) Accept(visitor Visitor) {
 	visitor.VisitWhereType(node)
+}
+
+func (node *WhereType) Begin() tokenizer.SourceLocation {
+	return node.whereKeyword.At
+}
+
+func (node *WhereType) End() tokenizer.SourceLocation {
+	return node.WhereExp.End()
 }
 
 type AsNamingType struct {
@@ -209,10 +329,11 @@ type AsNamingType struct {
 }
 
 type TypeDefinition struct {
-	Name    *tokenizer.Token
-	TypeExp TypeExpression
-	Scope   *Scope
-	Type    TypeNode
+	typeKeyword *tokenizer.Token
+	Name        *tokenizer.Token
+	TypeExp     TypeExpression
+	Scope       *Scope
+	Type        TypeNode
 }
 
 func (node *TypeDefinition) Accept(visitor Visitor) {
@@ -223,11 +344,19 @@ func (node *TypeDefinition) GetType() TypeNode {
 	return node.Type
 }
 
+func (node *TypeDefinition) Begin() tokenizer.SourceLocation {
+	return node.typeKeyword.At
+}
+
+func (node *TypeDefinition) End() tokenizer.SourceLocation {
+	return node.TypeExp.End()
+}
+
 type Function struct {
 	TypeExp TypeExpression
 	Body    *Body
 	Scope   *Scope
-	Type    TypeNode
+	Type    *FunctionTypeType
 }
 
 func (node *Function) Accept(visitor Visitor) {
@@ -236,6 +365,14 @@ func (node *Function) Accept(visitor Visitor) {
 
 func (node *Function) GetType() TypeNode {
 	return node.Type
+}
+
+func (node *Function) Begin() tokenizer.SourceLocation {
+	return node.TypeExp.Begin()
+}
+
+func (node *Function) End() tokenizer.SourceLocation {
+	return node.Body.End()
 }
 
 type FunctionDefinition struct {
@@ -247,19 +384,55 @@ func (node *FunctionDefinition) Accept(visitor Visitor) {
 	visitor.VisitFnDef(node)
 }
 
+func (node *FunctionDefinition) Begin() tokenizer.SourceLocation {
+	return node.Name.At
+}
+
+func (node *FunctionDefinition) End() tokenizer.SourceLocation {
+	return node.Function.End()
+}
+
 type FileDefinition struct {
+	start       tokenizer.SourceLocation
 	Definitions []Definition
 	Scope       *Scope
+	end         tokenizer.SourceLocation
 }
 
 func (node *FileDefinition) Accept(visitor Visitor) {
 	visitor.VisitFile(node)
 }
 
+func (node *FileDefinition) Begin() tokenizer.SourceLocation {
+	return node.start
+}
+
+func (node *FileDefinition) End() tokenizer.SourceLocation {
+	return node.end
+}
+
+type FunctionInformation struct {
+	ReturnType *StructureTypeType
+}
+
 type ReturnStatement struct {
-	Expression Expression
+	returnKeyword  *tokenizer.Token
+	ExpressionList []Expression
+	ForFunction    *FunctionInformation
 }
 
 func (node *ReturnStatement) Accept(visitor Visitor) {
 	visitor.VisitReturn(node)
+}
+
+func (node *ReturnStatement) Begin() tokenizer.SourceLocation {
+	return node.returnKeyword.At
+}
+
+func (node *ReturnStatement) End() tokenizer.SourceLocation {
+	if len(node.ExpressionList) > 0 {
+		return node.ExpressionList[len(node.ExpressionList)-1].End()
+	} else {
+		return node.returnKeyword.End()
+	}
 }

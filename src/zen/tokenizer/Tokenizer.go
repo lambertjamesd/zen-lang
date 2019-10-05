@@ -43,15 +43,14 @@ const (
 	GTEqToken        TokenType = 30
 )
 
-type SourceLocation struct {
-	Source *source.Source
-	At     int
-}
-
 type Token struct {
 	TokenType TokenType
 	Value     string
 	At        SourceLocation
+}
+
+func (token *Token) End() SourceLocation {
+	return token.At.WithOffset(len(token.Value))
 }
 
 type TokenizeResult struct {

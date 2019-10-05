@@ -4,6 +4,7 @@ import (
 	"log"
 	"zen/parser"
 	"zen/source"
+	"zen/typechecker"
 )
 
 func main() {
@@ -20,6 +21,14 @@ func main() {
 			log.Println(parser.FormatError(element))
 		}
 		log.Fatalf("Failed with %d errors", len(errors))
+	} else {
+		var typecheckErrors = typechecker.CheckTypes(parseResult)
+
+		if len(typecheckErrors) > 0 {
+			for _, element := range typecheckErrors {
+				log.Println(parser.FormatError(element))
+			}
+		}
 	}
 
 	if parseResult == nil {
