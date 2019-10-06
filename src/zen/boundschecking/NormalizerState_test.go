@@ -13,7 +13,7 @@ func (nodeState *NormalizerState) stringToSumGroup(t *testing.T, source string) 
 		t.Errorf("Failed to parse %s", source)
 		return nil
 	} else {
-		result, _ := nodeState.normalizeToSumGroup(a)
+		result, _ := nodeState.NormalizeToSumGroup(a)
 
 		if result == nil {
 			t.Errorf("Failed to normalize %s", source)
@@ -30,7 +30,7 @@ func (nodeState *NormalizerState) stringToOrGroup(t *testing.T, source string) *
 		t.Errorf("Failed to parse %s", source)
 		return nil
 	} else {
-		result := nodeState.normalizeToOrGroup(a)
+		result := nodeState.NormalizeToOrGroup(a)
 
 		if result == nil {
 			t.Errorf("Failed to normalize %s", source)
@@ -60,14 +60,14 @@ func TestCombiningGroups(t *testing.T) {
 		return
 	}
 
-	sumGroupA, err := nodeState.normalizeToSumGroup(a)
+	sumGroupA, err := nodeState.NormalizeToSumGroup(a)
 
 	if err != nil {
 		t.Error("Error normalizing")
 		return
 	}
 
-	sumGroupB, err := nodeState.normalizeToSumGroup(b)
+	sumGroupB, err := nodeState.NormalizeToSumGroup(b)
 
 	if err != nil {
 		t.Error("Error normalizing")
@@ -83,7 +83,7 @@ func TestCombiningGroups(t *testing.T) {
 		return
 	}
 
-	addAB2, err := nodeState.normalizeToSumGroup(addABExpr)
+	addAB2, err := nodeState.NormalizeToSumGroup(addABExpr)
 
 	if err != nil {
 		t.Error("Error normalizing")

@@ -164,6 +164,7 @@ func (productGroup *NormalizedNodeArray) ToString(builder *strings.Builder) {
 type SumGroup struct {
 	ProductGroups  []*ProductGroup
 	ConstantOffset int64
+	uniqueId       uint32
 }
 
 func (sumGroup *SumGroup) IsZero() bool {
@@ -234,8 +235,13 @@ func (sumGroup *SumGroup) ToString(builder *strings.Builder) {
 	}
 }
 
+func (sumGroup *SumGroup) GetUniqueId() uint32 {
+	return sumGroup.uniqueId
+}
+
 type AndGroup struct {
 	SumGroups []*SumGroup
+	unqiueId  uint32
 }
 
 func (andGroup *AndGroup) GetHashCode() int32 {
@@ -286,6 +292,10 @@ func (andGroup *AndGroup) ToString(builder *strings.Builder) {
 
 		group.ToString(builder)
 	}
+}
+
+func (andGroup *AndGroup) GetUniqueId() uint32 {
+	return andGroup.unqiueId
 }
 
 type OrGroup struct {

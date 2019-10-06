@@ -15,20 +15,20 @@ func (state *NormalizerState) normalizeExpression(expression parser.Expression) 
 func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *parser.BinaryExpression) *OrGroup {
 	if expression.Operator.TokenType == tokenizer.BooleanOrToken {
 		return state.combineOrGroups(
-			state.normalizeToOrGroup(expression.Left),
-			state.normalizeToOrGroup(expression.Right),
+			state.NormalizeToOrGroup(expression.Left),
+			state.NormalizeToOrGroup(expression.Right),
 		)
 	} else if expression.Operator.TokenType == tokenizer.BooleanAndToken {
 		return state.combineOrGroupsWithAnd(
-			state.normalizeToOrGroup(expression.Left),
-			state.normalizeToOrGroup(expression.Right),
+			state.NormalizeToOrGroup(expression.Left),
+			state.NormalizeToOrGroup(expression.Right),
 		)
 	} else if expression.Operator.TokenType == tokenizer.LTToken ||
 		expression.Operator.TokenType == tokenizer.LTEqToken ||
 		expression.Operator.TokenType == tokenizer.GTToken ||
 		expression.Operator.TokenType == tokenizer.GTEqToken {
-		leftSumGroup, _ := state.normalizeToSumGroup(expression.Left)
-		rightSumGroup, _ := state.normalizeToSumGroup(expression.Right)
+		leftSumGroup, _ := state.NormalizeToSumGroup(expression.Left)
+		rightSumGroup, _ := state.NormalizeToSumGroup(expression.Right)
 
 		if leftSumGroup == nil || rightSumGroup == nil {
 			return &OrGroup{nil}
@@ -53,13 +53,14 @@ func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *par
 			[]*AndGroup{
 				state.nodeCache.GetNodeSingleton(&AndGroup{
 					[]*SumGroup{sumGroup},
+					state.getNextUniqueId(),
 				}).(*AndGroup),
 			},
 		}).(*OrGroup)
 	} else if expression.Operator.TokenType == tokenizer.EqualToken ||
 		expression.Operator.TokenType == tokenizer.NotEqualToken {
-		leftSumGroup, _ := state.normalizeToSumGroup(expression.Left)
-		rightSumGroup, _ := state.normalizeToSumGroup(expression.Right)
+		leftSumGroup, _ := state.NormalizeToSumGroup(expression.Left)
+		rightSumGroup, _ := state.NormalizeToSumGroup(expression.Right)
 
 		if leftSumGroup == nil || rightSumGroup == nil {
 			return &OrGroup{nil}
@@ -88,12 +89,13 @@ func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *par
 						joined,
 						joinedNegate,
 					},
+					state.getNextUniqueId(),
 				}).(*AndGroup),
 			},
 		}).(*OrGroup)
 
 		if expression.Operator.TokenType == tokenizer.NotEqualToken {
-			result = state.notOrGroup(result)
+			result = state.NotOrGroup(result)
 		}
 
 		return result
@@ -102,7 +104,7 @@ func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *par
 	return &OrGroup{nil}
 }
 
-func (state *NormalizerState) normalizeToOrGroup(expression parser.Expression) *OrGroup {
+func (state *NormalizerState) NormalizeToOrGroup(expression parser.Expression) *OrGroup {
 	asBinaryExpression, ok := expression.(*parser.BinaryExpression)
 
 	if ok {
@@ -113,7 +115,7 @@ func (state *NormalizerState) normalizeToOrGroup(expression parser.Expression) *
 }
 
 func (state *NormalizerState) normalizeUnaryExpressionToSumGroup(expression *parser.UnaryExpression) (result *SumGroup, err error) {
-	expr, err := state.normalizeToSumGroup(expression.Expr)
+	expr, err := state.NormalizeToSumGroup(expression.Expr)
 
 	if err != nil {
 		return nil, err
@@ -127,13 +129,13 @@ func (state *NormalizerState) normalizeUnaryExpressionToSumGroup(expression *par
 }
 
 func (state *NormalizerState) normalizeBinaryExpressionToSumGroup(expression *parser.BinaryExpression) (result *SumGroup, err error) {
-	left, err := state.normalizeToSumGroup(expression.Left)
+	left, err := state.NormalizeToSumGroup(expression.Left)
 
 	if err != nil {
 		return nil, err
 	}
 
-	right, err := state.normalizeToSumGroup(expression.Right)
+	right, err := state.NormalizeToSumGroup(expression.Right)
 
 	if err != nil {
 		return nil, err
@@ -150,7 +152,7 @@ func (state *NormalizerState) normalizeBinaryExpressionToSumGroup(expression *pa
 	}
 }
 
-func (state *NormalizerState) normalizeToSumGroup(expression parser.Expression) (result *SumGroup, err error) {
+func (state *NormalizerState) NormalizeToSumGroup(expression parser.Expression) (result *SumGroup, err error) {
 	asBinaryExpression, ok := expression.(*parser.BinaryExpression)
 
 	if ok {
@@ -175,6 +177,7 @@ func (state *NormalizerState) normalizeToSumGroup(expression parser.Expression) 
 		return state.nodeCache.GetNodeSingleton(&SumGroup{
 			nil,
 			int64(parsedNumber),
+			state.getNextUniqueId(),
 		}).(*SumGroup), nil
 	}
 
@@ -197,6 +200,7 @@ func (state *NormalizerState) normalizeToSumGroup(expression parser.Expression) 
 		var sumGroup = state.nodeCache.GetNodeSingleton(&SumGroup{
 			[]*ProductGroup{productGroup},
 			int64(0),
+			state.getNextUniqueId(),
 		}).(*SumGroup)
 
 		return sumGroup, nil

@@ -6,21 +6,6 @@ import (
 	"zen/tokenizer"
 )
 
-type TypeCheckable interface {
-	parser.ParseNode
-	checkType(typeChecker *TypeChecker) parser.TypeNode
-}
-
-func checkType(typeChecker *TypeChecker, node parser.ParseNode) parser.TypeNode {
-	asTypeCheckable, ok := node.(TypeCheckable)
-
-	if ok {
-		return asTypeCheckable.checkType(typeChecker)
-	} else {
-		return &parser.VoidType{}
-	}
-}
-
 type TypeChecker struct {
 	scopes        []*VariableScope
 	errors        []parser.ParseError

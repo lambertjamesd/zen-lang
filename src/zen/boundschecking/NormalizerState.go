@@ -19,6 +19,10 @@ func NewNormalizerState() *NormalizerState {
 	}
 }
 
+func (state *NormalizerState) UseIdentifierMapping(name string, id int32) {
+	state.identfierSourceMapping[name] = id
+}
+
 func (state *NormalizerState) getNextUniqueId() uint32 {
 	state.currentUniqueID = state.currentUniqueID + 1
 	return state.currentUniqueID
@@ -175,6 +179,7 @@ func (state *NormalizerState) negateSumGroup(a *SumGroup) *SumGroup {
 	return state.nodeCache.GetNodeSingleton(&SumGroup{
 		values,
 		-a.ConstantOffset,
+		state.getNextUniqueId(),
 	}).(*SumGroup)
 }
 
@@ -228,6 +233,7 @@ func (state *NormalizerState) addSumGroups(a *SumGroup, b *SumGroup, extraOffset
 	var result = &SumGroup{
 		values,
 		a.ConstantOffset + b.ConstantOffset + extraOffset,
+		state.getNextUniqueId(),
 	}
 
 	return state.nodeCache.GetNodeSingleton(result).(*SumGroup)
@@ -259,6 +265,7 @@ func (state *NormalizerState) multiplySumGroups(a *SumGroup, b *SumGroup) *SumGr
 	return state.nodeCache.GetNodeSingleton(&SumGroup{
 		values,
 		a.ConstantOffset * b.ConstantOffset,
+		state.getNextUniqueId(),
 	}).(*SumGroup)
 }
 
@@ -294,6 +301,7 @@ func (state *NormalizerState) combineAndGroups(a *AndGroup, b *AndGroup) *AndGro
 
 	return state.nodeCache.GetNodeSingleton(&AndGroup{
 		result,
+		state.getNextUniqueId(),
 	}).(*AndGroup)
 }
 
@@ -366,6 +374,7 @@ func (state *NormalizerState) notSumGroup(sumGroup *SumGroup) *SumGroup {
 	return state.nodeCache.GetNodeSingleton(&SumGroup{
 		result.ProductGroups,
 		result.ConstantOffset - 1,
+		state.getNextUniqueId(),
 	}).(*SumGroup)
 }
 
@@ -376,6 +385,7 @@ func (state *NormalizerState) notAndGroup(andGroup *AndGroup) *OrGroup {
 		var notSumGroup = state.notSumGroup(sumGroup)
 		result = append(result, state.nodeCache.GetNodeSingleton(&AndGroup{
 			[]*SumGroup{notSumGroup},
+			state.getNextUniqueId(),
 		}).(*AndGroup))
 	}
 
@@ -388,7 +398,7 @@ func (state *NormalizerState) notAndGroup(andGroup *AndGroup) *OrGroup {
 	}).(*OrGroup)
 }
 
-func (state *NormalizerState) notOrGroup(orGroup *OrGroup) *OrGroup {
+func (state *NormalizerState) NotOrGroup(orGroup *OrGroup) *OrGroup {
 	var result *OrGroup = nil
 
 	for _, andGroup := range orGroup.AndGroups {

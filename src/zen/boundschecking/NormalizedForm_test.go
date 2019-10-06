@@ -38,6 +38,7 @@ func TestEqualityChecks(t *testing.T) {
 			zmath.Ri64Fromi64(-5),
 		}},
 		int64(10),
+		uint32(100),
 	}
 
 	var sumGroupB = &SumGroup{
@@ -51,6 +52,7 @@ func TestEqualityChecks(t *testing.T) {
 			zmath.Ri64Fromi64(-5),
 		}},
 		int64(10),
+		uint32(101),
 	}
 
 	var sumGroupC = &SumGroup{
@@ -64,6 +66,7 @@ func TestEqualityChecks(t *testing.T) {
 			zmath.Ri64Fromi64(-5),
 		}},
 		int64(11),
+		uint32(102),
 	}
 
 	var sumGroupD = &SumGroup{
@@ -77,6 +80,7 @@ func TestEqualityChecks(t *testing.T) {
 			zmath.Ri64Fromi64(-10),
 		}},
 		int64(10),
+		uint32(103),
 	}
 
 	test.Assert(t, sumGroupA.Compare(sumGroupB) == 0, "Sum group equality")

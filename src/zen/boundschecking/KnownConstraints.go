@@ -2,6 +2,8 @@ package boundschecking
 
 import (
 	"errors"
+	"sort"
+	"strings"
 	"zen/zmath"
 )
 
@@ -11,16 +13,21 @@ type CheckResult struct {
 	IsTrue bool
 }
 
+type productGroupEntry struct {
+	index     uint32
+	nodeArray *NormalizedNodeArray
+}
+
 type KnownConstraints struct {
 	equationColumns        []*SumGroup
-	productGroupRows       map[uint32]uint32
+	productGroupRows       map[uint32]productGroupEntry
 	equationTransformation *zmath.Matrixi64
 }
 
 func NewKnownConstraints() *KnownConstraints {
 	var result = &KnownConstraints{
 		make([]*SumGroup, 0),
-		make(map[uint32]uint32, 0),
+		make(map[uint32]productGroupEntry, 0),
 		zmath.NewMatrixi64(1, 1),
 	}
 
@@ -31,7 +38,8 @@ func NewKnownConstraints() *KnownConstraints {
 
 func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result CheckResult, err error) {
 	for _, productGroup := range equation.ProductGroups {
-		if constraints.productGroupRows[productGroup.Values.uniqueID] == 0 {
+		_, ok := constraints.productGroupRows[productGroup.Values.uniqueID]
+		if !ok {
 			return CheckResult{
 				false,
 			}, nil
@@ -144,7 +152,7 @@ func (constraints *KnownConstraints) rowReduceVector(vector *zmath.Matrixi64, pi
 
 func (constraints *KnownConstraints) extractColumnVector(equation *SumGroup) *zmath.Matrixi64 {
 	for _, productGroup := range equation.ProductGroups {
-		constraints.ensureProductGroup(productGroup.Values.uniqueID)
+		constraints.ensureProductGroup(productGroup.Values)
 	}
 
 	var result = zmath.NewMatrixi64(constraints.equationTransformation.Cols, 1)
@@ -154,27 +162,31 @@ func (constraints *KnownConstraints) extractColumnVector(equation *SumGroup) *zm
 
 	for _, productGroup := range equation.ProductGroups {
 		var index = constraints.productGroupRows[productGroup.Values.uniqueID]
-		result.SetEntryi64(index, 0, productGroup.ConstantScalar)
+		result.SetEntryi64(index.index, 0, productGroup.ConstantScalar)
 	}
 
 	return result
 }
 
-func (constraints *KnownConstraints) ensureProductGroup(productGroupID uint32) uint32 {
-	var result = constraints.productGroupRows[productGroupID]
+func (constraints *KnownConstraints) ensureProductGroup(productGroup *NormalizedNodeArray) uint32 {
+	var productGroupID = productGroup.uniqueID
+	var result, ok = constraints.productGroupRows[productGroupID]
 
-	if result == 0 {
+	if !ok {
 		constraints.equationColumns = append(constraints.equationColumns, nil)
-		constraints.productGroupRows[productGroupID] = constraints.equationTransformation.Rows
+		constraints.productGroupRows[productGroupID] = productGroupEntry{
+			constraints.equationTransformation.Rows,
+			productGroup,
+		}
 		constraints.equationTransformation.Resize(constraints.equationTransformation.Rows+1, constraints.equationTransformation.Cols+1)
 	}
 
-	return result
+	return result.index
 }
 
 func (from *KnownConstraints) Copy() *KnownConstraints {
 	var equationColumns = make([]*SumGroup, len(from.equationColumns))
-	var productGroupRows = make(map[uint32]uint32)
+	var productGroupRows = make(map[uint32]productGroupEntry)
 
 	copy(equationColumns, from.equationColumns)
 
@@ -187,4 +199,48 @@ func (from *KnownConstraints) Copy() *KnownConstraints {
 		productGroupRows,
 		from.equationTransformation.Copy(),
 	}
+}
+
+// type KnownConstraints struct {
+// 	equationColumns        []*SumGroup
+// 	productGroupRows       map[uint32]uint32
+// 	equationTransformation *zmath.Matrixi64
+// }
+
+func (from *KnownConstraints) ToString() string {
+	var result strings.Builder
+
+	result.WriteString("Columns:\n")
+
+	for _, sumGroup := range from.equationColumns {
+		if sumGroup == nil {
+			result.WriteString("nil\n")
+		} else {
+			result.WriteString(ToString(sumGroup))
+			result.WriteString("\n")
+		}
+	}
+
+	var rows []productGroupEntry = nil
+
+	for _, entry := range from.productGroupRows {
+		rows = append(rows, entry)
+	}
+
+	sort.Slice(rows, func(a, b int) bool {
+		return rows[a].index < rows[b].index
+	})
+
+	result.WriteString("\nColumn Vector Product Types:\n")
+
+	for _, entry := range rows {
+		result.WriteString(ToString(entry.nodeArray))
+		result.WriteString("\n")
+	}
+
+	result.WriteString("\nTransform\n")
+
+	result.WriteString(from.equationTransformation.String())
+
+	return result.String()
 }
