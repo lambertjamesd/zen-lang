@@ -20,6 +20,8 @@ const (
 	ProductGroupType
 	NormalizedNodeArrayType
 	SumGroupType
+	AndGroupType
+	OrGroupType
 )
 
 type NormalizedNode interface {
@@ -164,6 +166,10 @@ type SumGroup struct {
 	ConstantOffset int64
 }
 
+func (sumGroup *SumGroup) IsZero() bool {
+	return len(sumGroup.ProductGroups) == 0 && sumGroup.ConstantOffset == int64(0)
+}
+
 func (sumGroup *SumGroup) GetHashCode() int32 {
 	var result = int32(sumGroup.ConstantOffset)
 
@@ -223,7 +229,7 @@ func (sumGroup *SumGroup) ToString(builder *strings.Builder) {
 		builder.WriteString(" + ")
 	}
 
-	if sumGroup.ConstantOffset != 0 {
+	if sumGroup.ConstantOffset != 0 || len(sumGroup.ProductGroups) == 0 {
 		builder.WriteString(strconv.Itoa(int(sumGroup.ConstantOffset)))
 	}
 }
@@ -232,8 +238,108 @@ type AndGroup struct {
 	SumGroups []*SumGroup
 }
 
+func (andGroup *AndGroup) GetHashCode() int32 {
+	var result = int32(0)
+
+	for _, node := range andGroup.SumGroups {
+		result = JoinHash(result, node.GetHashCode())
+	}
+
+	return result
+}
+
+func (andGroup *AndGroup) Compare(other NormalizedNode) int32 {
+	otherAsAndGroup, ok := other.(*AndGroup)
+
+	if ok {
+		if andGroup == otherAsAndGroup {
+			return 0
+		}
+
+		if len(andGroup.SumGroups) != len(otherAsAndGroup.SumGroups) {
+			return (int32)(len(andGroup.SumGroups) - len(otherAsAndGroup.SumGroups))
+		}
+
+		for index, node := range andGroup.SumGroups {
+			var result = node.Compare(otherAsAndGroup.SumGroups[index])
+
+			if result != 0 {
+				return result
+			}
+		}
+
+		return 0
+	} else {
+		return andGroup.GetNormalizedType() - other.GetNormalizedType()
+	}
+}
+
+func (andGroup *AndGroup) GetNormalizedType() NormalizedNodeType {
+	return AndGroupType
+}
+
+func (andGroup *AndGroup) ToString(builder *strings.Builder) {
+	for index, group := range andGroup.SumGroups {
+		if index != 0 {
+			builder.WriteString(" && ")
+		}
+
+		group.ToString(builder)
+	}
+}
+
 type OrGroup struct {
 	AndGroups []*AndGroup
+}
+
+func (orGroup *OrGroup) GetHashCode() int32 {
+	var result = int32(0)
+
+	for _, node := range orGroup.AndGroups {
+		result = JoinHash(result, node.GetHashCode())
+	}
+
+	return result
+}
+
+func (orGroup *OrGroup) Compare(other NormalizedNode) int32 {
+	otherAsOrGroup, ok := other.(*OrGroup)
+
+	if ok {
+		if orGroup == otherAsOrGroup {
+			return 0
+		}
+
+		if len(orGroup.AndGroups) != len(otherAsOrGroup.AndGroups) {
+			return (int32)(len(orGroup.AndGroups) - len(otherAsOrGroup.AndGroups))
+		}
+
+		for index, node := range orGroup.AndGroups {
+			var result = node.Compare(otherAsOrGroup.AndGroups[index])
+
+			if result != 0 {
+				return result
+			}
+		}
+
+		return 0
+	} else {
+		return orGroup.GetNormalizedType() - other.GetNormalizedType()
+	}
+}
+
+func (orGroup *OrGroup) GetNormalizedType() NormalizedNodeType {
+	return OrGroupType
+}
+
+func (orGroup *OrGroup) ToString(builder *strings.Builder) {
+	for index, group := range orGroup.AndGroups {
+		if index != 0 {
+			builder.WriteString(" || ")
+		}
+
+		group.ToString(builder)
+	}
 }
 
 type NormalizedEquation struct {

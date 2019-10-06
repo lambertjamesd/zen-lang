@@ -1,6 +1,7 @@
 package boundschecking
 
 import (
+	"sort"
 	"zen/zmath"
 )
 
@@ -26,6 +27,8 @@ func (state *NormalizerState) getNextUniqueId() uint32 {
 func (state *NormalizerState) multiplyProductGroupByScalar(a *ProductGroup, b zmath.RationalNumberi64) *ProductGroup {
 	if b.IsZero() {
 		return nil
+	} else if b.IsOne() {
+		return a
 	} else {
 		return state.nodeCache.GetNodeSingleton(&ProductGroup{
 			a.Values,
@@ -175,7 +178,13 @@ func (state *NormalizerState) negateSumGroup(a *SumGroup) *SumGroup {
 	}).(*SumGroup)
 }
 
-func (state *NormalizerState) addSumGroups(a *SumGroup, b *SumGroup) *SumGroup {
+func (state *NormalizerState) addSumGroups(a *SumGroup, b *SumGroup, extraOffset int64) *SumGroup {
+	if a == nil {
+		return b
+	} else if b == nil {
+		return a
+	}
+
 	var values []*ProductGroup = nil
 
 	var aIndex = 0
@@ -183,10 +192,14 @@ func (state *NormalizerState) addSumGroups(a *SumGroup, b *SumGroup) *SumGroup {
 
 	for aIndex < len(a.ProductGroups) && bIndex < len(b.ProductGroups) {
 		if a.ProductGroups[aIndex].Values == b.ProductGroups[bIndex].Values {
-			values = append(values, state.nodeCache.GetNodeSingleton(&ProductGroup{
-				a.ProductGroups[aIndex].Values,
-				zmath.AddRi64(a.ProductGroups[aIndex].ConstantScalar, b.ProductGroups[bIndex].ConstantScalar),
-			}).(*ProductGroup))
+			var scalar = zmath.AddRi64(a.ProductGroups[aIndex].ConstantScalar, b.ProductGroups[bIndex].ConstantScalar)
+
+			if !scalar.IsZero() {
+				values = append(values, state.nodeCache.GetNodeSingleton(&ProductGroup{
+					a.ProductGroups[aIndex].Values,
+					scalar,
+				}).(*ProductGroup))
+			}
 
 			aIndex = aIndex + 1
 			bIndex = bIndex + 1
@@ -214,7 +227,7 @@ func (state *NormalizerState) addSumGroups(a *SumGroup, b *SumGroup) *SumGroup {
 
 	var result = &SumGroup{
 		values,
-		a.ConstantOffset + b.ConstantOffset,
+		a.ConstantOffset + b.ConstantOffset + extraOffset,
 	}
 
 	return state.nodeCache.GetNodeSingleton(result).(*SumGroup)
@@ -234,8 +247,10 @@ func (state *NormalizerState) multiplySumGroups(a *SumGroup, b *SumGroup) *SumGr
 		var scaledA []*ProductGroup = nil
 		var scalarAsRational = zmath.Ri64Fromi64(b.ConstantOffset)
 
-		for _, productGroup := range a.ProductGroups {
-			scaledA = append(scaledA, state.multiplyProductGroupByScalar(productGroup, scalarAsRational))
+		if !scalarAsRational.IsZero() {
+			for _, productGroup := range a.ProductGroups {
+				scaledA = append(scaledA, state.multiplyProductGroupByScalar(productGroup, scalarAsRational))
+			}
 		}
 
 		values = state.addProductGroups(values, scaledA)
@@ -245,4 +260,140 @@ func (state *NormalizerState) multiplySumGroups(a *SumGroup, b *SumGroup) *SumGr
 		values,
 		a.ConstantOffset * b.ConstantOffset,
 	}).(*SumGroup)
+}
+
+func (state *NormalizerState) combineAndGroups(a *AndGroup, b *AndGroup) *AndGroup {
+	var aIndex = 0
+	var bIndex = 0
+
+	var result []*SumGroup = nil
+
+	for aIndex < len(a.SumGroups) || bIndex < len(b.SumGroups) {
+		var compareResult = int32(0)
+
+		if aIndex == len(a.SumGroups) {
+			compareResult = int32(1)
+		} else if bIndex == len(b.SumGroups) {
+			compareResult = int32(-1)
+		} else {
+			compareResult = a.SumGroups[aIndex].Compare(b.SumGroups[bIndex])
+		}
+
+		if compareResult == 0 {
+			result = append(result, a.SumGroups[aIndex])
+			aIndex = aIndex + 1
+			bIndex = bIndex + 1
+		} else if compareResult < 0 {
+			result = append(result, a.SumGroups[aIndex])
+			aIndex = aIndex + 1
+		} else {
+			result = append(result, b.SumGroups[bIndex])
+			bIndex = bIndex + 1
+		}
+	}
+
+	return state.nodeCache.GetNodeSingleton(&AndGroup{
+		result,
+	}).(*AndGroup)
+}
+
+func (state *NormalizerState) combineOrGroups(a *OrGroup, b *OrGroup) *OrGroup {
+	if a == nil {
+		return b
+	} else if b == nil {
+		return a
+	}
+
+	var aIndex = 0
+	var bIndex = 0
+
+	var result []*AndGroup = nil
+
+	for aIndex < len(a.AndGroups) || bIndex < len(b.AndGroups) {
+		var compareResult = int32(0)
+
+		if aIndex == len(a.AndGroups) {
+			compareResult = int32(1)
+		} else if bIndex == len(b.AndGroups) {
+			compareResult = int32(-1)
+		} else {
+			compareResult = a.AndGroups[aIndex].Compare(b.AndGroups[bIndex])
+		}
+
+		if compareResult == 0 {
+			result = append(result, a.AndGroups[aIndex])
+			aIndex = aIndex + 1
+			bIndex = bIndex + 1
+		} else if compareResult < 0 {
+			result = append(result, a.AndGroups[aIndex])
+			aIndex = aIndex + 1
+		} else {
+			result = append(result, b.AndGroups[bIndex])
+			bIndex = bIndex + 1
+		}
+	}
+
+	return state.nodeCache.GetNodeSingleton(&OrGroup{
+		result,
+	}).(*OrGroup)
+}
+
+func (state *NormalizerState) combineOrWithAndGroup(orGroup *OrGroup, andGroup *AndGroup) *OrGroup {
+	var result []*AndGroup = nil
+
+	for _, subGroup := range orGroup.AndGroups {
+		result = append(result, state.combineAndGroups(subGroup, andGroup))
+	}
+
+	return &OrGroup{
+		result,
+	}
+}
+
+func (state *NormalizerState) combineOrGroupsWithAnd(a *OrGroup, b *OrGroup) *OrGroup {
+	var result *OrGroup = nil
+
+	for _, subGroup := range a.AndGroups {
+		result = state.combineOrWithAndGroup(b, subGroup)
+	}
+
+	return state.nodeCache.GetNodeSingleton(result).(*OrGroup)
+}
+
+func (state *NormalizerState) notSumGroup(sumGroup *SumGroup) *SumGroup {
+	var result = state.negateSumGroup(sumGroup)
+
+	return state.nodeCache.GetNodeSingleton(&SumGroup{
+		result.ProductGroups,
+		result.ConstantOffset - 1,
+	}).(*SumGroup)
+}
+
+func (state *NormalizerState) notAndGroup(andGroup *AndGroup) *OrGroup {
+	var result []*AndGroup = nil
+
+	for _, sumGroup := range andGroup.SumGroups {
+		var notSumGroup = state.notSumGroup(sumGroup)
+		result = append(result, state.nodeCache.GetNodeSingleton(&AndGroup{
+			[]*SumGroup{notSumGroup},
+		}).(*AndGroup))
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Compare(result[j]) < 0
+	})
+
+	return state.nodeCache.GetNodeSingleton(&OrGroup{
+		result,
+	}).(*OrGroup)
+}
+
+func (state *NormalizerState) notOrGroup(orGroup *OrGroup) *OrGroup {
+	var result *OrGroup = nil
+
+	for _, andGroup := range orGroup.AndGroups {
+		result = state.combineOrGroups(result, state.notAndGroup(andGroup))
+	}
+
+	return result
 }

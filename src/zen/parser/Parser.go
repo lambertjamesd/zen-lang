@@ -331,6 +331,8 @@ const (
 func getExpressionOperatorPrecedence(token *tokenizer.Token) (result expressionOperatorPrecedence) {
 	switch token.TokenType {
 	case tokenizer.EqualToken:
+		fallthrough
+	case tokenizer.NotEqualToken:
 		return equalityPrecedence
 	case tokenizer.GTEqToken:
 		fallthrough

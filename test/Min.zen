@@ -3,8 +3,8 @@ func Min[a: i32, b: i32] => [result: i32]
     where result <= a && result <= b
 {
     if (a < b) {
-        return a;
+        return a
     } else {
-        return b;
+        return b
     }
 }

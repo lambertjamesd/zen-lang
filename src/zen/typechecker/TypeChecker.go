@@ -6,6 +6,21 @@ import (
 	"zen/tokenizer"
 )
 
+type TypeCheckable interface {
+	parser.ParseNode
+	checkType(typeChecker *TypeChecker) parser.TypeNode
+}
+
+func checkType(typeChecker *TypeChecker, node parser.ParseNode) parser.TypeNode {
+	asTypeCheckable, ok := node.(TypeCheckable)
+
+	if ok {
+		return asTypeCheckable.checkType(typeChecker)
+	} else {
+		return &parser.VoidType{}
+	}
+}
+
 type TypeChecker struct {
 	scopes        []*VariableScope
 	errors        []parser.ParseError
@@ -194,7 +209,7 @@ func (typeChecker *TypeChecker) VisitBinaryExpression(exp *parser.BinaryExpressi
 			}
 			typeChecker.pushType(&parser.UndefinedType{})
 		}
-	} else if exp.Operator.TokenType == tokenizer.EqualToken {
+	} else if exp.Operator.TokenType == tokenizer.EqualToken || exp.Operator.TokenType == tokenizer.NotEqualToken {
 		if leftType.GetNodeType() == rightType.GetNodeType() {
 			exp.Type = &parser.BooleanType{}
 			typeChecker.pushType(exp.Type)

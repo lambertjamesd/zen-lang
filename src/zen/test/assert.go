@@ -6,6 +6,6 @@ import (
 
 func Assert(t *testing.T, value bool, message string) {
 	if !value {
-		t.Errorf("Failed to assertion %s", message)
+		t.Errorf("Failed to assert %s", message)
 	}
 }

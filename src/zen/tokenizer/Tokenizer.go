@@ -41,6 +41,8 @@ const (
 	LTEqToken        TokenType = 28
 	GTToken          TokenType = 29
 	GTEqToken        TokenType = 30
+	NotToken         TokenType = 31
+	NotEqualToken    TokenType = 32
 )
 
 type Token struct {
@@ -106,6 +108,8 @@ func startState(next rune) (nextState tokenizerState) {
 		return andState
 	} else if next == '|' {
 		return orState
+	} else if next == '!' {
+		return notState
 	}
 	return errorState
 }
@@ -165,6 +169,14 @@ func orState(next rune) (nextState tokenizerState, token TokenType) {
 		return outputTokenState(BooleanOrToken), NoToken
 	} else {
 		return startState(next), BitwiseOrToken
+	}
+}
+
+func notState(next rune) (nextState tokenizerState, token TokenType) {
+	if next == '=' {
+		return outputTokenState(NotEqualToken), NoToken
+	} else {
+		return startState(next), NotToken
 	}
 }
 

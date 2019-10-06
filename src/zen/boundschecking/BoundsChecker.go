@@ -1,5 +1,0 @@
-package boundschecking
-
-func checkBounds() {
-
-}
