@@ -18,15 +18,20 @@ type productGroupEntry struct {
 	nodeArray *NormalizedNodeArray
 }
 
+type equationColumnInfo struct {
+	sumGroup *SumGroup
+	isZero   bool
+}
+
 type KnownConstraints struct {
-	equationColumns        []*SumGroup
+	equationColumns        []equationColumnInfo
 	productGroupRows       map[uint32]productGroupEntry
 	equationTransformation *zmath.Matrixi64
 }
 
 func NewKnownConstraints() *KnownConstraints {
 	var result = &KnownConstraints{
-		make([]*SumGroup, 0),
+		make([]equationColumnInfo, 0),
 		make(map[uint32]productGroupEntry, 0),
 		zmath.NewMatrixi64(1, 1),
 	}
@@ -63,11 +68,11 @@ func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result C
 
 	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index-1] == nil && entryValue != 0 {
+		if constraints.equationColumns[index-1].sumGroup == nil && entryValue != 0 {
 			return CheckResult{
 				false,
 			}, nil
-		} else if entryValue < 0 {
+		} else if entryValue < 0 && !constraints.equationColumns[index-1].isZero {
 			return CheckResult{
 				false,
 			}, nil
@@ -92,39 +97,36 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 	}
 
 	negativeCount := 0
+	negativeIndex := uint32(0)
 	positiveCount := 0
+	positiveIndex := uint32(0)
 	blankIndex := UNUSED
 
 	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index-1] == nil && entryValue != 0 {
+		if constraints.equationColumns[index-1].sumGroup == nil && entryValue != 0 {
 			blankIndex = index
 			break
 		} else if entryValue < 0 {
+			negativeIndex = index
 			negativeCount = negativeCount + 1
 		} else if entryValue > 0 {
+			positiveIndex = index
 			positiveCount = positiveCount + 1
 		}
 	}
 
 	if blankIndex != UNUSED {
-		constraints.equationColumns[blankIndex-1] = equation
+		constraints.equationColumns[blankIndex-1] = equationColumnInfo{equation, false}
 		constraints.rowReduceVector(transformedVector, blankIndex)
 		return true, nil
 	} else if negativeCount == 0 {
 		return true, nil
+	} else if negativeCount == 1 && positiveCount == 0 {
+		constraints.equationColumns[negativeIndex-1].isZero = true
+		return true, nil
 	} else if positiveCount == 1 {
-		positiveIndex := uint32(0)
-
-		for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
-			entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-
-			if entryValue > 0 {
-				positiveIndex = index
-			}
-		}
-
-		constraints.equationColumns[positiveIndex-1] = equation
+		constraints.equationColumns[positiveIndex-1] = equationColumnInfo{equation, false}
 		constraints.rowReduceVector(transformedVector, positiveIndex)
 
 		return true, nil
@@ -140,7 +142,7 @@ func (constraints *KnownConstraints) rowReduceVector(vector *zmath.Matrixi64, pi
 		if pivotIndex != index {
 			scalarValue := zmath.DivRi64(
 				vector.GetEntryi64(index, 0),
-				zmath.Muli64(zmath.AbsRi64(pivotValue), -1),
+				zmath.Muli64(pivotValue, -1),
 			)
 
 			constraints.equationTransformation.AddRowToRow(pivotIndex, index, scalarValue)
@@ -173,7 +175,7 @@ func (constraints *KnownConstraints) ensureProductGroup(productGroup *Normalized
 	var result, ok = constraints.productGroupRows[productGroupID]
 
 	if !ok {
-		constraints.equationColumns = append(constraints.equationColumns, nil)
+		constraints.equationColumns = append(constraints.equationColumns, equationColumnInfo{nil, false})
 		constraints.productGroupRows[productGroupID] = productGroupEntry{
 			constraints.equationTransformation.Rows,
 			productGroup,
@@ -185,7 +187,7 @@ func (constraints *KnownConstraints) ensureProductGroup(productGroup *Normalized
 }
 
 func (from *KnownConstraints) Copy() *KnownConstraints {
-	var equationColumns = make([]*SumGroup, len(from.equationColumns))
+	var equationColumns = make([]equationColumnInfo, len(from.equationColumns))
 	var productGroupRows = make(map[uint32]productGroupEntry)
 
 	copy(equationColumns, from.equationColumns)
@@ -213,10 +215,13 @@ func (from *KnownConstraints) ToString() string {
 	result.WriteString("Columns:\n")
 
 	for _, sumGroup := range from.equationColumns {
-		if sumGroup == nil {
+		if sumGroup.sumGroup == nil {
 			result.WriteString("nil\n")
 		} else {
-			result.WriteString(ToString(sumGroup))
+			result.WriteString(ToString(sumGroup.sumGroup))
+			if sumGroup.isZero {
+				result.WriteString(" == 0")
+			}
 			result.WriteString("\n")
 		}
 	}

@@ -33,8 +33,14 @@ func TestMinSimulation(t *testing.T) {
 	nodeState.UseIdentifierMapping("b", 2)
 	nodeState.UseIdentifierMapping("result", 3)
 
-	checkerState.addRules(stringToOrGroup(t, nodeState, "a < b"))
-	checkerState.addRules(stringToOrGroup(t, nodeState, "a == result"))
+	_, err := checkerState.addRules(stringToOrGroup(t, nodeState, "a < b"))
+	if err != nil {
+		t.Error(err.Error())
+	}
+	_, err = checkerState.addRules(stringToOrGroup(t, nodeState, "a == result"))
+	if err != nil {
+		t.Error(err.Error())
+	}
 	checkResult, err := checkerState.checkOrGroup(stringToOrGroup(t, nodeState, "result <= a && result <= b"))
 
 	if err != nil {
@@ -43,20 +49,19 @@ func TestMinSimulation(t *testing.T) {
 
 	test.Assert(t, checkResult, "A branch should to true")
 
-	//elseState.addRules(nodeState.NotOrGroup(stringToOrGroup(t, nodeState, "a < b")))
-	t.Log(elseState.knownConstraints[0].ToString())
-	t.Log(boundschecking.ToString(stringToOrGroup(t, nodeState, "b <= a")))
-	elseState.addRules(stringToOrGroup(t, nodeState, "b <= a"))
-	t.Log(elseState.knownConstraints[0].ToString())
-	elseState.addRules(stringToOrGroup(t, nodeState, "b == result"))
-	t.Log(elseState.knownConstraints[0].ToString())
+	_, err = elseState.addRules(nodeState.NotOrGroup(stringToOrGroup(t, nodeState, "a < b")))
+	if err != nil {
+		t.Error(err.Error())
+	}
+	_, err = elseState.addRules(stringToOrGroup(t, nodeState, "b == result"))
+	if err != nil {
+		t.Error(err.Error())
+	}
 	checkResult, err = elseState.checkOrGroup(stringToOrGroup(t, nodeState, "result <= a && result <= b"))
 
 	if err != nil {
 		t.Error(err.Error())
 	}
-
-	t.Log(elseState.knownConstraints[0].ToString())
 
 	test.Assert(t, checkResult, "B branch should to true")
 }

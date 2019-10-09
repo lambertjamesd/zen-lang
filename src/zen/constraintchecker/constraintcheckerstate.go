@@ -1,6 +1,9 @@
 package constraintchecker
 
-import "zen/boundschecking"
+import (
+	"log"
+	"zen/boundschecking"
+)
 
 type ConstraintCheckerState struct {
 	knownConstraints []*boundschecking.KnownConstraints
@@ -36,6 +39,7 @@ func (state *ConstraintCheckerState) addRules(newRules *boundschecking.OrGroup) 
 					nextConstraint = nextConstraint.Copy()
 				}
 
+				log.Print("Here at Sum Group")
 				isValid, err := nextConstraint.InsertSumGroup(sumGroup)
 
 				if err != nil {
