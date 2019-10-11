@@ -92,10 +92,6 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 		return false, err
 	}
 
-	if transformedVector.GetEntryi64(0, 0).Numerator < 0 {
-		return false, nil
-	}
-
 	negativeCount := 0
 	negativeIndex := uint32(0)
 	positiveCount := 0
@@ -104,16 +100,22 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 
 	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index-1].sumGroup == nil && entryValue != 0 {
+		if blankIndex == UNUSED && constraints.equationColumns[index-1].sumGroup == nil && entryValue != 0 {
 			blankIndex = index
-			break
-		} else if entryValue < 0 {
+		}
+
+		if entryValue < 0 {
 			negativeIndex = index
 			negativeCount = negativeCount + 1
 		} else if entryValue > 0 {
 			positiveIndex = index
 			positiveCount = positiveCount + 1
 		}
+	}
+
+	if transformedVector.GetEntryi64(0, 0).Numerator < 0 && positiveIndex == 0 {
+		// I think
+		return false, nil
 	}
 
 	if blankIndex != UNUSED {

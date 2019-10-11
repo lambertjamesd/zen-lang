@@ -2,10 +2,23 @@ package main
 
 import (
 	"log"
+	"zen/constraintchecker"
 	"zen/parser"
 	"zen/source"
 	"zen/typechecker"
 )
+
+func checkErrors(errors []parser.ParseError) bool {
+	if len(errors) == 0 {
+		return true
+	} else {
+		for _, element := range errors {
+			log.Println(parser.FormatError(element))
+		}
+
+		return false
+	}
+}
 
 func main() {
 	source, err := source.SourceFromFile("../../test/Min.zen")
@@ -16,24 +29,11 @@ func main() {
 
 	var parseResult, errors = parser.Parse(source)
 
-	if len(errors) > 0 {
-		for _, element := range errors {
-			log.Println(parser.FormatError(element))
-		}
-		log.Fatalf("Failed with %d errors", len(errors))
+	if checkErrors(errors) &&
+		checkErrors(typechecker.CheckTypes(parseResult)) &&
+		checkErrors(constraintchecker.CheckConstraints(parseResult)) {
+		log.Print("Success")
 	} else {
-		var typecheckErrors = typechecker.CheckTypes(parseResult)
-
-		if len(typecheckErrors) > 0 {
-			for _, element := range typecheckErrors {
-				log.Println(parser.FormatError(element))
-			}
-		}
+		log.Print("Fail")
 	}
-
-	if parseResult == nil {
-		log.Fatalf("Failed with unkown error")
-	}
-
-	log.Print("Success")
 }

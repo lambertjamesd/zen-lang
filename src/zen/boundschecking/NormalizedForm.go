@@ -32,19 +32,19 @@ type NormalizedNode interface {
 }
 
 type VariableReference struct {
-	name    string
-	valueId int32
+	Name    string
+	valueId int
 }
 
 func (variableReference *VariableReference) GetHashCode() int32 {
-	return variableReference.valueId
+	return int32(variableReference.valueId)
 }
 
 func (variable *VariableReference) Compare(other NormalizedNode) int32 {
 	otherAsVariable, ok := other.(*VariableReference)
 
 	if ok {
-		return variable.valueId - otherAsVariable.valueId
+		return int32(variable.valueId - otherAsVariable.valueId)
 	} else {
 		return variable.GetNormalizedType() - other.GetNormalizedType()
 	}
@@ -55,9 +55,9 @@ func (variable *VariableReference) GetNormalizedType() NormalizedNodeType {
 }
 
 func (variable *VariableReference) ToString(builder *strings.Builder) {
-	builder.WriteString(variable.name)
+	builder.WriteString(variable.Name)
 	builder.WriteString("_")
-	builder.WriteString(strconv.Itoa(int(variable.valueId)))
+	builder.WriteString(strconv.Itoa(variable.valueId))
 }
 
 type NormalizedNodeArray struct {

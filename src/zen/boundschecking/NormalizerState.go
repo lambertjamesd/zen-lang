@@ -5,22 +5,26 @@ import (
 	"zen/zmath"
 )
 
+type IdentifierSource struct {
+	UniqueId int
+}
+
 type NormalizerState struct {
 	nodeCache              *NodeCache
 	currentUniqueID        uint32
-	identfierSourceMapping map[string]int32
+	identfierSourceMapping map[string]IdentifierSource
 }
 
 func NewNormalizerState() *NormalizerState {
 	return &NormalizerState{
 		NewNodeCache(),
 		uint32(0),
-		make(map[string]int32),
+		make(map[string]IdentifierSource),
 	}
 }
 
-func (state *NormalizerState) UseIdentifierMapping(name string, id int32) {
-	state.identfierSourceMapping[name] = id
+func (state *NormalizerState) UseIdentifierMapping(name string, id int) {
+	state.identfierSourceMapping[name] = IdentifierSource{id}
 }
 
 func (state *NormalizerState) getNextUniqueId() uint32 {
@@ -406,4 +410,30 @@ func (state *NormalizerState) NotOrGroup(orGroup *OrGroup) *OrGroup {
 	}
 
 	return result
+}
+
+func (state *NormalizerState) CreateEquality(sumGroups *SumGroup, id NormalizedNode) []*SumGroup {
+	var halfGroup = state.addSumGroups(sumGroups, state.negateSumGroup(state.sumGroupFromNode(id)), int64(0))
+	return []*SumGroup{
+		halfGroup,
+		state.negateSumGroup(halfGroup),
+	}
+}
+
+func (state *NormalizerState) CreateAndGroup(sumGroups []*SumGroup) *AndGroup {
+	if len(sumGroups) == 0 {
+		return nil
+	}
+
+	return state.nodeCache.GetNodeSingleton(&AndGroup{
+		sumGroups,
+		state.getNextUniqueId(),
+	}).(*AndGroup)
+}
+
+func (state *NormalizerState) CreateVariableReference(name string, at int) *VariableReference {
+	return state.nodeCache.GetNodeSingleton(&VariableReference{
+		name,
+		at,
+	}).(*VariableReference)
 }

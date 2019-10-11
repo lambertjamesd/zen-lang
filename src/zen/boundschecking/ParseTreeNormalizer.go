@@ -186,25 +186,29 @@ func (state *NormalizerState) NormalizeToSumGroup(expression parser.Expression) 
 	if ok {
 		var varRef = state.nodeCache.GetNodeSingleton(&VariableReference{
 			asIdentifier.Token.Value,
-			state.identfierSourceMapping[asIdentifier.Token.Value],
+			state.identfierSourceMapping[asIdentifier.Token.Value].UniqueId,
 		}).(*VariableReference)
 
-		var productGroup = state.nodeCache.GetNodeSingleton(&ProductGroup{
-			state.nodeCache.GetNodeSingleton(&NormalizedNodeArray{
-				[]NormalizedNode{varRef},
-				state.getNextUniqueId(),
-			}).(*NormalizedNodeArray),
-			zmath.Ri64_1(),
-		}).(*ProductGroup)
-
-		var sumGroup = state.nodeCache.GetNodeSingleton(&SumGroup{
-			[]*ProductGroup{productGroup},
-			int64(0),
-			state.getNextUniqueId(),
-		}).(*SumGroup)
-
-		return sumGroup, nil
+		return state.sumGroupFromNode(varRef), nil
 	}
 
 	return nil, errors.New("Could not convert to sum group")
+}
+
+func (state *NormalizerState) sumGroupFromNode(node NormalizedNode) *SumGroup {
+	var productGroup = state.nodeCache.GetNodeSingleton(&ProductGroup{
+		state.nodeCache.GetNodeSingleton(&NormalizedNodeArray{
+			[]NormalizedNode{node},
+			state.getNextUniqueId(),
+		}).(*NormalizedNodeArray),
+		zmath.Ri64_1(),
+	}).(*ProductGroup)
+
+	var sumGroup = state.nodeCache.GetNodeSingleton(&SumGroup{
+		[]*ProductGroup{productGroup},
+		int64(0),
+		state.getNextUniqueId(),
+	}).(*SumGroup)
+
+	return sumGroup
 }

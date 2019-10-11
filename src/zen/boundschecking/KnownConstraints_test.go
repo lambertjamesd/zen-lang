@@ -20,9 +20,9 @@ func TestSimpleChecks(t *testing.T) {
 	var constraints = NewKnownConstraints()
 	var nodeState = NewNormalizerState()
 
-	nodeState.identfierSourceMapping["a"] = 1
-	nodeState.identfierSourceMapping["b"] = 2
-	nodeState.identfierSourceMapping["c"] = 3
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
 
 	constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "a"))
 
@@ -40,9 +40,9 @@ func TransitiveChecks(t *testing.T) {
 	var constraints = NewKnownConstraints()
 	var nodeState = NewNormalizerState()
 
-	nodeState.identfierSourceMapping["a"] = 1
-	nodeState.identfierSourceMapping["b"] = 2
-	nodeState.identfierSourceMapping["c"] = 3
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
 
 	constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "a - b"))
 	constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "b - c"))

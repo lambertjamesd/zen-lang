@@ -1,7 +1,6 @@
 package constraintchecker
 
 import (
-	"log"
 	"zen/boundschecking"
 )
 
@@ -27,19 +26,42 @@ func (state *ConstraintCheckerState) Copy() *ConstraintCheckerState {
 	}
 }
 
-func (state *ConstraintCheckerState) addRules(newRules *boundschecking.OrGroup) (bool, error) {
+func (state *ConstraintCheckerState) addSumGroups(newRules []*boundschecking.SumGroup) (bool, error) {
 	var nextRules []*boundschecking.KnownConstraints = nil
 
-	for newRuleIndex, andGroup := range newRules.AndGroups {
+	for _, sumGroup := range newRules {
+		for _, existingConstraint := range state.knownConstraints {
+			isValid, err := existingConstraint.InsertSumGroup(sumGroup)
+
+			if err != nil {
+				return false, err
+			} else if isValid {
+				nextRules = append(nextRules, existingConstraint)
+			}
+		}
+	}
+
+	state.knownConstraints = nextRules
+
+	return true, nil
+}
+
+func (state *ConstraintCheckerState) addRules(newRules []*boundschecking.AndGroup) (bool, error) {
+	if len(newRules) == 0 {
+		return true, nil
+	}
+
+	var nextRules []*boundschecking.KnownConstraints = nil
+
+	for newRuleIndex, andGroup := range newRules {
 		for _, sumGroup := range andGroup.SumGroups {
 			for _, existingConstraint := range state.knownConstraints {
 				var nextConstraint = existingConstraint
 
-				if newRuleIndex != len(newRules.AndGroups)-1 {
+				if newRuleIndex != len(newRules)-1 {
 					nextConstraint = nextConstraint.Copy()
 				}
 
-				log.Print("Here at Sum Group")
 				isValid, err := nextConstraint.InsertSumGroup(sumGroup)
 
 				if err != nil {
@@ -99,6 +121,23 @@ func (state *ConstraintCheckerState) checkOrGroup(rulesCheck *boundschecking.OrG
 	for _, knownConstraints := range state.knownConstraints {
 		var sumGroupCache = make(map[uint32]bool)
 		checkResult, err := checkOrGroup(knownConstraints, sumGroupCache, rulesCheck)
+
+		if err != nil {
+			return false, nil
+		}
+
+		if !checkResult {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (state *ConstraintCheckerState) checkAndGroup(rulesCheck *boundschecking.AndGroup) (bool, error) {
+	for _, knownConstraints := range state.knownConstraints {
+		var sumGroupCache = make(map[uint32]bool)
+		checkResult, err := checkAndGroup(knownConstraints, sumGroupCache, rulesCheck)
 
 		if err != nil {
 			return false, nil

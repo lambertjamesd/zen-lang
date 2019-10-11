@@ -147,8 +147,9 @@ func (booleanType *BooleanType) UniqueId() int {
 }
 
 type StructureNamedEntryType struct {
-	Name string
-	Type TypeNode
+	Name     string
+	UniqueId int
+	Type     TypeNode
 }
 
 type StructureTypeType struct {

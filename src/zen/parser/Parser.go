@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"log"
 	"zen/source"
 	"zen/tokenizer"
 )
@@ -485,7 +484,6 @@ func parseBody(parseResult *parseResult, state *parseState) (result *Body) {
 
 	for closeToken == nil && peek(state, 0).TokenType != tokenizer.EOFToken {
 		statement, ok := parseStatement(parseResult, state)
-		log.Print("Statement")
 		if !ok {
 			return nil
 		}

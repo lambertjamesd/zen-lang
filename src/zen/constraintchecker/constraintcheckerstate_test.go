@@ -33,11 +33,11 @@ func TestMinSimulation(t *testing.T) {
 	nodeState.UseIdentifierMapping("b", 2)
 	nodeState.UseIdentifierMapping("result", 3)
 
-	_, err := checkerState.addRules(stringToOrGroup(t, nodeState, "a < b"))
+	_, err := checkerState.addRules(stringToOrGroup(t, nodeState, "a < b").AndGroups)
 	if err != nil {
 		t.Error(err.Error())
 	}
-	_, err = checkerState.addRules(stringToOrGroup(t, nodeState, "a == result"))
+	_, err = checkerState.addRules(stringToOrGroup(t, nodeState, "a == result").AndGroups)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -49,11 +49,11 @@ func TestMinSimulation(t *testing.T) {
 
 	test.Assert(t, checkResult, "A branch should to true")
 
-	_, err = elseState.addRules(nodeState.NotOrGroup(stringToOrGroup(t, nodeState, "a < b")))
+	_, err = elseState.addRules(nodeState.NotOrGroup(stringToOrGroup(t, nodeState, "a < b")).AndGroups)
 	if err != nil {
 		t.Error(err.Error())
 	}
-	_, err = elseState.addRules(stringToOrGroup(t, nodeState, "b == result"))
+	_, err = elseState.addRules(stringToOrGroup(t, nodeState, "b == result").AndGroups)
 	if err != nil {
 		t.Error(err.Error())
 	}

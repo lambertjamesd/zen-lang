@@ -291,6 +291,7 @@ func (typeChecker *TypeChecker) VisitStructureType(structure *parser.StructureTy
 	for _, entry := range structure.Entries {
 		var subType = &parser.StructureNamedEntryType{
 			entry.Name.Value,
+			entry.Name.At.At,
 			typeChecker.acceptSubType(entry.TypeExp),
 		}
 		entry.Type = subType
