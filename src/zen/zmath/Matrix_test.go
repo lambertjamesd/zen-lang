@@ -152,3 +152,46 @@ func TestMatrixResize(t *testing.T) {
 		Ri64Fromi64(0), Ri64Fromi64(0), Ri64Fromi64(0), Ri64Fromi64(1),
 	})
 }
+
+func TestMatrixOrthogonal(t *testing.T) {
+	orthoResult, err := OrthogonalVector([]*Matrixi64{NewMatrixi64WithData(2, 1, []RationalNumberi64{
+		Ri64Fromi64(1), Ri64Fromi64(1),
+	})})
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	checkMatrix(t, orthoResult, []RationalNumberi64{
+		Ri64Fromi64(1), Ri64Fromi64(-1),
+	})
+
+	orthoResult, err = OrthogonalVector([]*Matrixi64{NewMatrixi64WithData(2, 1, []RationalNumberi64{
+		Ri64Fromi64(-2), Ri64Fromi64(3),
+	})})
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	checkMatrix(t, orthoResult, []RationalNumberi64{
+		Ri64Fromi64(3), Ri64Fromi64(2),
+	})
+
+	orthoResult, err = OrthogonalVector([]*Matrixi64{
+		NewMatrixi64WithData(3, 1, []RationalNumberi64{
+			Ri64Fromi64(1), Ri64Fromi64(0), Ri64Fromi64(0),
+		}),
+		NewMatrixi64WithData(3, 1, []RationalNumberi64{
+			Ri64Fromi64(0), Ri64Fromi64(1), Ri64Fromi64(0),
+		}),
+	})
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	checkMatrix(t, orthoResult, []RationalNumberi64{
+		Ri64Fromi64(0), Ri64Fromi64(0), Ri64Fromi64(1),
+	})
+}

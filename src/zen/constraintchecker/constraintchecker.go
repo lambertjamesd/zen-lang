@@ -22,8 +22,12 @@ func NewConstrantChecker() *ConstraintChecker {
 	}
 }
 
-func (constraintChecker *ConstraintChecker) reportError(at tokenizer.SourceLocation, message string) {
+func (constraintChecker *ConstraintChecker) reportErrorMessage(at tokenizer.SourceLocation, message string) {
 	constraintChecker.errors = append(constraintChecker.errors, parser.CreateError(at, message))
+}
+
+func (constraintChecker *ConstraintChecker) reportError(parseError parser.ParseError) {
+	constraintChecker.errors = append(constraintChecker.errors, parseError)
 }
 
 func (constraintChecker *ConstraintChecker) createState() *ConstraintCheckerState {
@@ -113,7 +117,7 @@ func (constraintChecker *ConstraintChecker) VisitIf(ifStatement *parser.IfStatem
 	var ifBodyState = constraintChecker.createState()
 	_, err := ifBodyState.addRules(expresssionRules.AndGroups)
 	if err != nil {
-		constraintChecker.reportError(ifStatement.Expresssion.Begin(), err.Error())
+		constraintChecker.reportErrorMessage(ifStatement.Expresssion.Begin(), err.Error())
 	}
 	ifStatement.Body.Accept(constraintChecker)
 	constraintChecker.popState()
@@ -122,7 +126,7 @@ func (constraintChecker *ConstraintChecker) VisitIf(ifStatement *parser.IfStatem
 		var elseBodyState = constraintChecker.createState()
 		_, err = elseBodyState.addRules(constraintChecker.normalizerState.NotOrGroup(expresssionRules).AndGroups)
 		if err != nil {
-			constraintChecker.reportError(ifStatement.Expresssion.Begin(), err.Error())
+			constraintChecker.reportErrorMessage(ifStatement.Expresssion.Begin(), err.Error())
 		}
 		ifStatement.ElseBody.Accept(constraintChecker)
 		constraintChecker.popState()
@@ -150,28 +154,58 @@ func (constraintChecker *ConstraintChecker) VisitReturn(ret *parser.ReturnStatem
 			sumGroup, err := constraintChecker.normalizerState.NormalizeToSumGroup(returnValue)
 
 			if err != nil {
-				constraintChecker.reportError(returnValue.Begin(), err.Error())
+				constraintChecker.reportErrorMessage(returnValue.Begin(), err.Error())
 			} else if index < len(functionStack.outputNames) {
 				var rules = constraintChecker.normalizerState.CreateEquality(sumGroup, functionStack.outputNames[index])
 				_, err := state.addSumGroups(rules)
 
 				if err != nil {
-					constraintChecker.reportError(returnValue.Begin(), "Could not append to known data")
+					constraintChecker.reportErrorMessage(returnValue.Begin(), "Could not append to known data")
 				}
 
-			} else if index < len(functionStack.outputNames) {
-				constraintChecker.reportError(returnValue.Begin(), "Too many return arguments")
+			} else if index == len(functionStack.outputNames) {
+				constraintChecker.reportErrorMessage(returnValue.Begin(), "Too many return arguments")
 			}
 		}
 
-		result, err := state.checkAndGroup(postCondition)
+		result, err := state.checkOrGroup(postCondition)
 
 		if err != nil {
-			constraintChecker.reportError(ret.Begin(), err.Error())
-		} else if !result {
-			constraintChecker.reportError(ret.Begin(), "Could not verify post conditions")
+			constraintChecker.reportErrorMessage(ret.Begin(), err.Error())
+		} else if len(result) > 0 {
+			constraintChecker.reportError(parser.CreateErrorWithMultipleLocations(
+				ret.Begin(),
+				"Could not verify post conditions",
+				constraintChecker.formatErrorWithConstraints("With precondition at\n", result),
+			))
 		}
 	}
+}
+
+func (constraintChecker *ConstraintChecker) formatErrorWithConstraints(lineMessage string, conditions []*boundschecking.SumGroup) []parser.ParseError {
+	var sourceErrors []parser.ParseError = nil
+	var topFrame = constraintChecker.peekFunctionStack()
+	var alreadyFormatted = make(map[uint32]bool)
+
+	if topFrame != nil {
+		for _, condition := range conditions {
+			var id = condition.GetUniqueId()
+
+			_, ok := alreadyFormatted[id]
+
+			if !ok {
+				alreadyFormatted[id] = true
+
+				expression, ok := topFrame.expressionMapping[id]
+
+				if ok {
+					sourceErrors = append(sourceErrors, parser.CreateError(expression.Begin(), lineMessage))
+				}
+			}
+		}
+	}
+
+	return sourceErrors
 }
 
 func (constraintChecker *ConstraintChecker) VisitNamedType(namedType *parser.NamedType) {

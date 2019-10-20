@@ -55,3 +55,19 @@ func TransitiveChecks(t *testing.T) {
 	constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "-a"))
 	assertTrue(t, nodeState, constraints, "b", true, "a + b >= 0 && a <= 0 => b >= 0")
 }
+
+func TestContradictions(t *testing.T) {
+	var constraints = NewKnownConstraints()
+	var nodeState = NewNormalizerState()
+
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
+
+	insertResult, err := constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "a - 10")) // a >= 10
+	test.Assert(t, insertResult, "The first insert should pass")
+
+	insertResult, err = constraints.InsertSumGroup(nodeState.stringToSumGroup(t, "-a")) // a < 0
+	test.Assert(t, !insertResult, "The contradiction insert should fail")
+	test.Assert(t, err == nil, "The contradiction insert should not have failed with an error")
+}

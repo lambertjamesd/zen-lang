@@ -78,7 +78,8 @@ func (state *ConstraintCheckerState) addRules(newRules []*boundschecking.AndGrou
 	return len(state.knownConstraints) != 0, nil
 }
 
-func checkAndGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCache map[uint32]bool, rulesCheck *boundschecking.AndGroup) (bool, error) {
+func checkAndGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCache map[uint32]bool, rulesCheck *boundschecking.AndGroup) ([]*boundschecking.SumGroup, error) {
+	var falseSumGroups []*boundschecking.SumGroup = nil
 	for _, sumGroup := range rulesCheck.SumGroups {
 		var isSumGroupTrue, ok = sumGroupCache[sumGroup.GetUniqueId()]
 
@@ -86,7 +87,7 @@ func checkAndGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCac
 			checkResult, err := knownConstraint.CheckSumGroup(sumGroup)
 
 			if err != nil {
-				return false, err
+				return nil, err
 			}
 
 			isSumGroupTrue = checkResult.IsTrue
@@ -94,59 +95,67 @@ func checkAndGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCac
 		}
 
 		if !isSumGroupTrue {
-			return false, nil
+			falseSumGroups = append(falseSumGroups, sumGroup)
 		}
 	}
 
-	return true, nil
+	return falseSumGroups, nil
 }
 
-func checkOrGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCache map[uint32]bool, rulesCheck *boundschecking.OrGroup) (bool, error) {
+func checkOrGroup(knownConstraint *boundschecking.KnownConstraints, sumGroupCache map[uint32]bool, rulesCheck *boundschecking.OrGroup) ([]*boundschecking.SumGroup, error) {
+	var result []*boundschecking.SumGroup = nil
+
 	for _, andGroup := range rulesCheck.AndGroups {
 		andCheck, err := checkAndGroup(knownConstraint, sumGroupCache, andGroup)
 
 		if err != nil {
-			return false, nil
+			return nil, nil
 		}
 
-		if andCheck {
-			return true, nil
+		if len(andCheck) == 0 {
+			return nil, nil
+		} else {
+			result = append(result, andCheck...)
 		}
 	}
 
-	return false, nil
+	return result, nil
 }
 
-func (state *ConstraintCheckerState) checkOrGroup(rulesCheck *boundschecking.OrGroup) (bool, error) {
+func (state *ConstraintCheckerState) checkOrGroup(rulesCheck *boundschecking.OrGroup) ([]*boundschecking.SumGroup, error) {
+	var result []*boundschecking.SumGroup = nil
 	for _, knownConstraints := range state.knownConstraints {
 		var sumGroupCache = make(map[uint32]bool)
 		checkResult, err := checkOrGroup(knownConstraints, sumGroupCache, rulesCheck)
 
 		if err != nil {
-			return false, nil
+			return nil, err
 		}
 
-		if !checkResult {
-			return false, nil
+		if len(checkResult) == 0 {
+			return nil, nil
+		} else {
+			result = append(result, checkResult...)
 		}
 	}
 
-	return true, nil
+	return result, nil
 }
 
-func (state *ConstraintCheckerState) checkAndGroup(rulesCheck *boundschecking.AndGroup) (bool, error) {
+func (state *ConstraintCheckerState) checkAndGroup(rulesCheck *boundschecking.AndGroup) ([]*boundschecking.SumGroup, error) {
+	var result []*boundschecking.SumGroup = nil
 	for _, knownConstraints := range state.knownConstraints {
 		var sumGroupCache = make(map[uint32]bool)
 		checkResult, err := checkAndGroup(knownConstraints, sumGroupCache, rulesCheck)
 
 		if err != nil {
-			return false, nil
+			return nil, nil
 		}
 
-		if !checkResult {
-			return false, nil
+		if len(checkResult) > 0 {
+			result = append(result, checkResult...)
 		}
 	}
 
-	return true, nil
+	return result, nil
 }

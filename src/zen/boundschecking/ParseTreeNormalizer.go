@@ -48,7 +48,7 @@ func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *par
 			offset = -1
 		}
 
-		var sumGroup = state.addSumGroups(leftSumGroup, rightSumGroup, offset)
+		var sumGroup = state.recordExpressionMapping(state.addSumGroups(leftSumGroup, rightSumGroup, offset), expression)
 		return state.nodeCache.GetNodeSingleton(&OrGroup{
 			[]*AndGroup{
 				state.nodeCache.GetNodeSingleton(&AndGroup{
@@ -86,8 +86,8 @@ func (state *NormalizerState) normalizeBinaryExpressionToOrGroup(expression *par
 			[]*AndGroup{
 				state.nodeCache.GetNodeSingleton(&AndGroup{
 					[]*SumGroup{
-						joined,
-						joinedNegate,
+						state.recordExpressionMapping(joined, expression),
+						state.recordExpressionMapping(joinedNegate, expression),
 					},
 					state.getNextUniqueId(),
 				}).(*AndGroup),

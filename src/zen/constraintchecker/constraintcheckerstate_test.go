@@ -47,7 +47,7 @@ func TestMinSimulation(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	test.Assert(t, checkResult, "A branch should to true")
+	test.Assert(t, len(checkResult) == 0, "A branch should to true")
 
 	_, err = elseState.addRules(nodeState.NotOrGroup(stringToOrGroup(t, nodeState, "a < b")).AndGroups)
 	if err != nil {
@@ -63,5 +63,5 @@ func TestMinSimulation(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	test.Assert(t, checkResult, "B branch should to true")
+	test.Assert(t, len(checkResult) == 0, "B branch should to true")
 }

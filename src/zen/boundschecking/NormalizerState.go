@@ -2,6 +2,7 @@ package boundschecking
 
 import (
 	"sort"
+	"zen/parser"
 	"zen/zmath"
 )
 
@@ -10,9 +11,10 @@ type IdentifierSource struct {
 }
 
 type NormalizerState struct {
-	nodeCache              *NodeCache
-	currentUniqueID        uint32
-	identfierSourceMapping map[string]IdentifierSource
+	nodeCache                *NodeCache
+	currentUniqueID          uint32
+	identfierSourceMapping   map[string]IdentifierSource
+	currentExpressionMapping map[uint32]parser.Expression
 }
 
 func NewNormalizerState() *NormalizerState {
@@ -20,7 +22,23 @@ func NewNormalizerState() *NormalizerState {
 		NewNodeCache(),
 		uint32(0),
 		make(map[string]IdentifierSource),
+		nil,
 	}
+}
+
+func (state *NormalizerState) recordExpressionMapping(sumGroup *SumGroup, expression parser.Expression) *SumGroup {
+	if state.currentExpressionMapping != nil {
+		state.currentExpressionMapping[sumGroup.GetUniqueId()] = expression
+	}
+	return sumGroup
+}
+
+func (state *NormalizerState) StartTrackingExpressionMapping(useMapping map[uint32]parser.Expression) {
+	state.currentExpressionMapping = useMapping
+}
+
+func (state *NormalizerState) StopTrackingExpressionMapping() {
+	state.currentExpressionMapping = nil
 }
 
 func (state *NormalizerState) UseIdentifierMapping(name string, id int) {
@@ -429,6 +447,16 @@ func (state *NormalizerState) CreateAndGroup(sumGroups []*SumGroup) *AndGroup {
 		sumGroups,
 		state.getNextUniqueId(),
 	}).(*AndGroup)
+}
+
+func (state *NormalizerState) CreateOrGroup(andGroups []*AndGroup) *OrGroup {
+	if len(andGroups) == 0 {
+		return nil
+	}
+
+	return state.nodeCache.GetNodeSingleton(&OrGroup{
+		andGroups,
+	}).(*OrGroup)
 }
 
 func (state *NormalizerState) CreateVariableReference(name string, at int) *VariableReference {

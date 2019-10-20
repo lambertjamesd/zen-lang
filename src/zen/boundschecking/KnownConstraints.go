@@ -41,17 +41,13 @@ func NewKnownConstraints() *KnownConstraints {
 	return result
 }
 
-func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result CheckResult, err error) {
-	for _, productGroup := range equation.ProductGroups {
-		_, ok := constraints.productGroupRows[productGroup.Values.uniqueID]
-		if !ok {
-			return CheckResult{
-				false,
-			}, nil
-		}
-	}
+func (constraints *KnownConstraints) negateColumnVector(columnVector *zmath.Matrixi64) *zmath.Matrixi64 {
+	var result = columnVector.Scalei64(zmath.Ri64Fromi64(-1))
+	result.SetEntryi64(0, 0, zmath.SubRi64(result.GetEntryi64(0, 0), zmath.Ri64_1()))
+	return result
+}
 
-	columnVector := constraints.extractColumnVector(equation)
+func (constraints *KnownConstraints) checkColumnVector(columnVector *zmath.Matrixi64) (result CheckResult, err error) {
 	transformedVector, err := constraints.equationTransformation.Muli64(columnVector)
 
 	if err != nil {
@@ -84,8 +80,31 @@ func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result C
 	}, nil
 }
 
+func (constraints *KnownConstraints) CheckSumGroup(equation *SumGroup) (result CheckResult, err error) {
+	for _, productGroup := range equation.ProductGroups {
+		_, ok := constraints.productGroupRows[productGroup.Values.uniqueID]
+		if !ok {
+			return CheckResult{
+				false,
+			}, nil
+		}
+	}
+
+	columnVector := constraints.extractColumnVector(equation)
+	return constraints.checkColumnVector(columnVector)
+}
+
 func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid bool, err error) {
 	columnVector := constraints.extractColumnVector(equation)
+
+	var contradictionCheckVector = constraints.negateColumnVector(columnVector)
+
+	contradictionCheck, err := constraints.checkColumnVector(contradictionCheckVector)
+
+	if err != nil || contradictionCheck.IsTrue {
+		return false, err
+	}
+
 	transformedVector, err := constraints.equationTransformation.Muli64(columnVector)
 
 	if err != nil {
@@ -113,11 +132,6 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 		}
 	}
 
-	if transformedVector.GetEntryi64(0, 0).Numerator < 0 && positiveIndex == 0 {
-		// I think
-		return false, nil
-	}
-
 	if blankIndex != UNUSED {
 		constraints.equationColumns[blankIndex-1] = equationColumnInfo{equation, false}
 		constraints.rowReduceVector(transformedVector, blankIndex)
@@ -130,7 +144,6 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 	} else if positiveCount == 1 {
 		constraints.equationColumns[positiveIndex-1] = equationColumnInfo{equation, false}
 		constraints.rowReduceVector(transformedVector, positiveIndex)
-
 		return true, nil
 	} else {
 		return false, errors.New("Not implemented yet")
