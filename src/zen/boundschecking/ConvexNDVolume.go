@@ -213,7 +213,7 @@ func (volume *ConvexNDVolume) Extrude(sumGroup []*SumGroup, value []zmath.Ration
 	for _, face := range volume.faces {
 		var dotResult = zmath.MatrixDot(face.normal, extractedVector)
 
-		if dotResult.Numerator < 0 {
+		if dotResult.Numerator <= 0 {
 			toRemove[face.basisIndices.ToInt32()] = true
 		} else {
 			alreadyAdded[face.basisIndices.ToInt32()] = face
@@ -244,8 +244,9 @@ func (volume *ConvexNDVolume) Extrude(sumGroup []*SumGroup, value []zmath.Ration
 								newFaces = append(newFaces, newFace)
 							}
 
-							faceEdge.to.updateEdge(face, newFace)
-							newFace.updateEdge(face, face)
+							var connectedFace = faceEdge.to
+							connectedFace.updateEdge(face, newFace)
+							newFace.updateEdge(connectedFace, connectedFace)
 						})
 					}
 				}
@@ -329,10 +330,10 @@ func (volume *ConvexNDVolume) ToString() string {
 
 		for _, edge := range face.edges {
 			stringBuilder.WriteString(fmt.Sprintf(
-				"    Edge Basis: %b toFace: %d fromFace: %d\n",
+				"    Edge Basis: %b fromFace: %d toFace: %d\n",
 				edge.basisIndices.ToInt32(),
-				volume.faceIndex(edge.to),
 				volume.faceIndex(edge.from),
+				volume.faceIndex(edge.to),
 			))
 		}
 	}

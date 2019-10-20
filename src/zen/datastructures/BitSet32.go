@@ -96,7 +96,7 @@ func (bitSet *BitSet32) ForEach(callback func(value uint32) bool) {
 }
 
 func (bitSet *BitSet32) ForEachSubSet(subsetSize uint32, callback func(set BitSet32)) {
-	if subsetSize >= bitSet.size {
+	if subsetSize >= bitSet.Size() {
 		callback(*bitSet)
 	} else {
 		var bitSetCopy = *bitSet

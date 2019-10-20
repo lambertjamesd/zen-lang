@@ -23,6 +23,8 @@ func veriyEdgeFrom(t *testing.T, volume *ConvexNDVolume) {
 
 func verifyBasisOrthogonal(t *testing.T, volume *ConvexNDVolume) {
 	for _, face := range volume.faces {
+		test.Assert(t, face.basisIndices.Size()+1 >= volume.getDimensionCount(), "Face should have correct number of orthogonal basis")
+
 		face.basisIndices.ForEach(func(basisIndex uint32) bool {
 			test.Assert(t, zmath.MatrixDot(face.normal, volume.basisVectors[basisIndex]).IsZero(), "Normal should be orthogonal to face basis")
 			return true
@@ -95,5 +97,88 @@ func TestAddDimension(t *testing.T) {
 
 	test.Assert(t, len(ndVolume.faces) == 3, "Correct face count")
 	verifyVolumeIsCorrect(t, &ndVolume)
+}
 
+func TestExtendOutSingleDimension(t *testing.T) {
+	var nodeState = NewNormalizerState()
+	var ndVolume ConvexNDVolume
+
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
+
+	var a = nodeState.stringToSumGroup(t, "a")
+	var b = nodeState.stringToSumGroup(t, "b")
+	var c = nodeState.stringToSumGroup(t, "c")
+
+	ndVolume.extendDimension(a)
+	ndVolume.extendDimension(b)
+	ndVolume.extendDimension(c)
+
+	ndVolume.Extrude([]*SumGroup{a, b, c}, []zmath.RationalNumberi64{
+		zmath.Ri64_1(),
+		zmath.Ri64_1(),
+		zmath.NegateRi64(zmath.Ri64_1()),
+	})
+
+	test.Assert(t, len(ndVolume.faces) == 4, "Should have 4 faces")
+	verifyVolumeIsCorrect(t, &ndVolume)
+}
+
+func TestExtendOutTwoDimensions(t *testing.T) {
+	var nodeState = NewNormalizerState()
+	var ndVolume ConvexNDVolume
+
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
+
+	var a = nodeState.stringToSumGroup(t, "a")
+	var b = nodeState.stringToSumGroup(t, "b")
+	var c = nodeState.stringToSumGroup(t, "c")
+
+	ndVolume.extendDimension(a)
+	ndVolume.extendDimension(b)
+	ndVolume.extendDimension(c)
+
+	ndVolume.Extrude([]*SumGroup{a, b, c}, []zmath.RationalNumberi64{
+		zmath.Ri64_1(),
+		zmath.NegateRi64(zmath.Ri64_1()),
+		zmath.NegateRi64(zmath.Ri64_1()),
+	})
+
+	test.Assert(t, len(ndVolume.faces) == 3, "Should have 3 faces")
+	verifyVolumeIsCorrect(t, &ndVolume)
+}
+
+func TestReplaceCoplanarFace(t *testing.T) {
+	var nodeState = NewNormalizerState()
+	var ndVolume ConvexNDVolume
+
+	nodeState.UseIdentifierMapping("a", 1)
+	nodeState.UseIdentifierMapping("b", 2)
+	nodeState.UseIdentifierMapping("c", 3)
+
+	var a = nodeState.stringToSumGroup(t, "a")
+	var b = nodeState.stringToSumGroup(t, "b")
+	var c = nodeState.stringToSumGroup(t, "c")
+
+	ndVolume.extendDimension(a)
+	ndVolume.extendDimension(b)
+	ndVolume.extendDimension(c)
+
+	ndVolume.Extrude([]*SumGroup{a, b, c}, []zmath.RationalNumberi64{
+		zmath.Ri64_1(),
+		zmath.Ri64_1(),
+		zmath.NegateRi64(zmath.Ri64_1()),
+	})
+
+	ndVolume.Extrude([]*SumGroup{a, b, c}, []zmath.RationalNumberi64{
+		zmath.Ri64_1(),
+		zmath.Ri64_0(),
+		zmath.NegateRi64(zmath.Ri64_1()),
+	})
+
+	test.Assert(t, len(ndVolume.faces) == 3, "Should have 3 faces")
+	verifyVolumeIsCorrect(t, &ndVolume)
 }
