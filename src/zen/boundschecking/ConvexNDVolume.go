@@ -27,7 +27,8 @@ type ConvexNDVolume struct {
 }
 
 func (face *boundsFace) updateEdge(oldConnection *boundsFace, newConnection *boundsFace) {
-	for _, edge := range face.edges {
+	for edgeIndex, _ := range face.edges {
+		var edge = &face.edges[edgeIndex]
 		if edge.to == oldConnection {
 			edge.to = newConnection
 			edge.basisIndices.Clear()
@@ -45,6 +46,16 @@ func (face *boundsFace) updateEdge(oldConnection *boundsFace, newConnection *bou
 		face,
 		newConnection,
 	})
+}
+
+func (face *boundsFace) getEdgeIndex(to *boundsFace) int {
+	for edgeIndex, edge := range face.edges {
+		if edge.to == to {
+			return edgeIndex
+		}
+	}
+
+	return -1
 }
 
 func (volume *ConvexNDVolume) getDimensionCount() uint32 {
@@ -106,7 +117,8 @@ func (volume *ConvexNDVolume) extendDimension(sumGroup *SumGroup) {
 
 	volume.basisVectors = append(volume.basisVectors, newBasisVector)
 
-	for _, edge := range result.edges {
+	for edgeIndex, _ := range result.edges {
+		var edge = &result.edges[edgeIndex]
 		edge.from = result
 		edge.to.updateEdge(result, result)
 	}
@@ -316,7 +328,12 @@ func (volume *ConvexNDVolume) ToString() string {
 		stringBuilder.WriteString("\n  Edges\n")
 
 		for _, edge := range face.edges {
-			stringBuilder.WriteString(fmt.Sprintf("    Edge Basis: %b toFace: %d\n", edge.basisIndices.ToInt32(), volume.faceIndex(edge.to)))
+			stringBuilder.WriteString(fmt.Sprintf(
+				"    Edge Basis: %b toFace: %d fromFace: %d\n",
+				edge.basisIndices.ToInt32(),
+				volume.faceIndex(edge.to),
+				volume.faceIndex(edge.from),
+			))
 		}
 	}
 
