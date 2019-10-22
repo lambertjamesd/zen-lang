@@ -26,6 +26,67 @@ type ConvexNDVolume struct {
 	axisToSumGroup []*SumGroup
 }
 
+func (face *boundsFace) CopyEdges(into *boundsFace, sourceVolume *ConvexNDVolume, intoVolume *ConvexNDVolume) {
+	into.edges = make([]boundsEdge, len(face.edges))
+
+	for edgeIndex, edge := range face.edges {
+		var from *boundsFace
+		var to *boundsFace
+
+		var fromIndex = sourceVolume.faceIndex(edge.from)
+		if fromIndex != -1 {
+			from = intoVolume.faces[fromIndex]
+		}
+
+		var toIndex = sourceVolume.faceIndex(edge.to)
+		if fromIndex != -1 {
+			to = intoVolume.faces[toIndex]
+		}
+
+		into.edges[edgeIndex] = boundsEdge{
+			edge.basisIndices.Copy(),
+			from,
+			to,
+		}
+	}
+}
+
+func (face *boundsFace) Copy() *boundsFace {
+	return &boundsFace{
+		face.normal.Copy(),
+		face.basisIndices.Copy(),
+		nil,
+	}
+}
+
+func (volume *ConvexNDVolume) CopyEdges(into *ConvexNDVolume) {
+	for faceIndex, face := range volume.faces {
+		face.CopyEdges(into.faces[faceIndex], volume, into)
+	}
+}
+
+func (volume *ConvexNDVolume) Copy() ConvexNDVolume {
+	var basisCopies []*zmath.Matrixi64
+	for _, other := range volume.basisVectors {
+		basisCopies = append(basisCopies, other.Copy())
+	}
+	var faceCopies []*boundsFace
+	for _, other := range volume.faces {
+		faceCopies = append(faceCopies, other.Copy())
+	}
+	var sumGroupCopies = make([]*SumGroup, len(volume.axisToSumGroup))
+	copy(sumGroupCopies, volume.axisToSumGroup)
+	var result = ConvexNDVolume{
+		basisCopies,
+		faceCopies,
+		sumGroupCopies,
+	}
+
+	volume.CopyEdges(&result)
+
+	return result
+}
+
 func (face *boundsFace) updateEdge(oldConnection *boundsFace, newConnection *boundsFace) {
 	for edgeIndex, _ := range face.edges {
 		var edge = &face.edges[edgeIndex]
@@ -126,7 +187,7 @@ func (volume *ConvexNDVolume) extendDimension(sumGroup *SumGroup) {
 	volume.faces = append(volume.faces, result)
 }
 
-func (volume *ConvexNDVolume) getMaybeSumGroupIndex(sumGroup *SumGroup) int {
+func (volume *ConvexNDVolume) GetMaybeSumGroupIndex(sumGroup *SumGroup) int {
 	for index, otherGroup := range volume.axisToSumGroup {
 		if otherGroup == sumGroup {
 			return index
@@ -137,7 +198,7 @@ func (volume *ConvexNDVolume) getMaybeSumGroupIndex(sumGroup *SumGroup) int {
 }
 
 func (volume *ConvexNDVolume) ensureSumGroupExists(sumGroup *SumGroup) int {
-	index := volume.getMaybeSumGroupIndex(sumGroup)
+	index := volume.GetMaybeSumGroupIndex(sumGroup)
 
 	if index == -1 {
 		volume.extendDimension(sumGroup)
@@ -151,8 +212,10 @@ func (volume *ConvexNDVolume) ensureSumGroupExists(sumGroup *SumGroup) int {
 func (volume *ConvexNDVolume) extractVector(sumGroup []*SumGroup, value []zmath.RationalNumberi64) *zmath.Matrixi64 {
 	var result = zmath.NewMatrixi64(uint32(len(volume.axisToSumGroup)), 1)
 
+	result.InitialzeZeroi64()
+
 	for subGroupIndex, sumGroup := range sumGroup {
-		var matrixIndex = volume.getMaybeSumGroupIndex(sumGroup)
+		var matrixIndex = volume.GetMaybeSumGroupIndex(sumGroup)
 		if matrixIndex != -1 {
 			result.SetEntryi64(uint32(matrixIndex), 0, value[subGroupIndex])
 		} else if value[subGroupIndex].Numerator < 0 {

@@ -132,9 +132,7 @@ func (state *ConstraintCheckerState) checkOrGroup(rulesCheck *boundschecking.OrG
 			return nil, err
 		}
 
-		if len(checkResult) == 0 {
-			return nil, nil
-		} else {
+		if len(checkResult) != 0 {
 			result = append(result, checkResult...)
 		}
 	}

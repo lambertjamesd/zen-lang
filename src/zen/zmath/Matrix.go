@@ -65,6 +65,14 @@ func NewMatrixi64WithData(Rows uint32, Cols uint32, data []RationalNumberi64) *M
 	return result
 }
 
+func (matrix *Matrixi64) InitialzeZeroi64() {
+	for row := uint32(0); row < matrix.Rows; row = row + 1 {
+		for col := uint32(0); col < matrix.Cols; col = col + 1 {
+			matrix.data[row*matrix.colCapacity+col] = Ri64_0()
+		}
+	}
+}
+
 func (matrix *Matrixi64) InitialzeIdentityi64() {
 	for row := uint32(0); row < matrix.Rows; row = row + 1 {
 		for col := uint32(0); col < matrix.Cols; col = col + 1 {

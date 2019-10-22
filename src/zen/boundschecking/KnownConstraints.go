@@ -1,7 +1,6 @@
 package boundschecking
 
 import (
-	"errors"
 	"sort"
 	"strings"
 	"zen/zmath"
@@ -27,6 +26,7 @@ type KnownConstraints struct {
 	equationColumns        []equationColumnInfo
 	productGroupRows       map[uint32]productGroupEntry
 	equationTransformation *zmath.Matrixi64
+	sumSpaceBoundingVolume ConvexNDVolume
 }
 
 func NewKnownConstraints() *KnownConstraints {
@@ -34,6 +34,7 @@ func NewKnownConstraints() *KnownConstraints {
 		make([]equationColumnInfo, 0),
 		make(map[uint32]productGroupEntry, 0),
 		zmath.NewMatrixi64(1, 1),
+		ConvexNDVolume{},
 	}
 
 	result.equationTransformation.InitialzeIdentityi64()
@@ -56,19 +57,38 @@ func (constraints *KnownConstraints) checkColumnVector(columnVector *zmath.Matri
 		}, err
 	}
 
-	if transformedVector.GetEntryi64(0, 0).Numerator < 0 {
-		return CheckResult{
-			false,
-		}, nil
-	}
+	var isTrue = true
 
-	for index := uint32(1); index < transformedVector.Rows; index = index + 1 {
+	for index := uint32(0); isTrue && index < transformedVector.Rows; index = index + 1 {
 		entryValue := transformedVector.GetEntryi64(index, 0).Numerator
-		if constraints.equationColumns[index-1].sumGroup == nil && entryValue != 0 {
+
+		var sumGroup *SumGroup = nil
+
+		if index != 0 {
+			sumGroup = constraints.equationColumns[index-1].sumGroup
+		}
+
+		if index == 0 {
+			if entryValue < 0 {
+				isTrue = false
+			}
+		} else if sumGroup == nil && entryValue != 0 {
+			isTrue = false
+		} else if entryValue < 0 && !constraints.equationColumns[index-1].isZero {
+			isTrue = false
+		}
+
+		if !isTrue && constraints.sumSpaceBoundingVolume.GetMaybeSumGroupIndex(sumGroup) == -1 {
 			return CheckResult{
 				false,
 			}, nil
-		} else if entryValue < 0 && !constraints.equationColumns[index-1].isZero {
+		}
+	}
+
+	if !isTrue {
+		sumGroups, values := constraints.extractVolumeValues(transformedVector)
+
+		if !constraints.sumSpaceBoundingVolume.IsBounded(sumGroups, values) {
 			return CheckResult{
 				false,
 			}, nil
@@ -146,8 +166,41 @@ func (constraints *KnownConstraints) InsertSumGroup(equation *SumGroup) (isValid
 		constraints.rowReduceVector(transformedVector, positiveIndex)
 		return true, nil
 	} else {
-		return false, errors.New("Not implemented yet")
+		return constraints.insertSumGroupIntoNDimension(equation, transformedVector)
 	}
+}
+
+func (constraints *KnownConstraints) extractVolumeValues(columnVector *zmath.Matrixi64) (sumGroups []*SumGroup, values []zmath.RationalNumberi64) {
+	sumGroups = nil
+	values = nil
+
+	for row := uint32(0); row < columnVector.Rows; row = row + 1 {
+		var vectorValue = columnVector.GetEntryi64(0, row)
+		if !vectorValue.IsZero() {
+			if row == 0 {
+				sumGroups = append(sumGroups, nil)
+			} else {
+				sumGroups = append(sumGroups, constraints.equationColumns[row-1].sumGroup)
+			}
+			values = append(values, vectorValue)
+		}
+	}
+
+	return sumGroups, values
+}
+
+func (constraints *KnownConstraints) insertSumGroupIntoNDimension(equation *SumGroup, columnVector *zmath.Matrixi64) (isValid bool, err error) {
+	sumGroups, values := constraints.extractVolumeValues(columnVector)
+
+	// TODO possibly pick replacement equation instead of always defaulting to new
+
+	err = constraints.sumSpaceBoundingVolume.Extrude(sumGroups, values)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (constraints *KnownConstraints) rowReduceVector(vector *zmath.Matrixi64, pivotIndex uint32) {
@@ -215,14 +268,9 @@ func (from *KnownConstraints) Copy() *KnownConstraints {
 		equationColumns,
 		productGroupRows,
 		from.equationTransformation.Copy(),
+		from.sumSpaceBoundingVolume.Copy(),
 	}
 }
-
-// type KnownConstraints struct {
-// 	equationColumns        []*SumGroup
-// 	productGroupRows       map[uint32]uint32
-// 	equationTransformation *zmath.Matrixi64
-// }
 
 func (from *KnownConstraints) ToString() string {
 	var result strings.Builder

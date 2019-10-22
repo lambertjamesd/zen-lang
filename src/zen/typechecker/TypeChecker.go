@@ -286,7 +286,6 @@ func (typeChecker *TypeChecker) VisitNamedType(namedType *parser.NamedType) {
 
 func (typeChecker *TypeChecker) VisitStructureType(structure *parser.StructureType) {
 	var subEntries []*parser.StructureNamedEntryType
-	var topScope = typeChecker.peekScope()
 
 	for _, entry := range structure.Entries {
 		var subType = &parser.StructureNamedEntryType{
@@ -296,7 +295,6 @@ func (typeChecker *TypeChecker) VisitStructureType(structure *parser.StructureTy
 		}
 		entry.Type = subType
 		subEntries = append(subEntries, subType)
-		topScope.variableMap[entry.Name.Value] = &VariableReference{subType.Type}
 	}
 
 	var result = parser.NewStructureTypeType(subEntries)
@@ -330,14 +328,33 @@ func (typeChecker *TypeChecker) VisitFunctionType(fn *parser.FunctionType) {
 func (typeChecker *TypeChecker) VisitWhereType(where *parser.WhereType) {
 	var whereScope = typeChecker.createScope()
 
-	var contrainedType = typeChecker.acceptSubType(where.TypeExp)
-	contrainedType.SetWhereExpression(where.WhereExp)
-	typeChecker.pushType(contrainedType)
+	var containedType = typeChecker.acceptSubType(where.TypeExp)
+	containedType.SetWhereExpression(where.WhereExp)
+	typeChecker.pushType(containedType)
 
-	var selfReference = &VariableReference{contrainedType}
-	whereScope.variableMap["self"] = selfReference
+	whereScope.variableMap["self"] = &VariableReference{containedType}
 
-	_, ok := typeChecker.acceptSubType(where.WhereExp).(*parser.BooleanType)
+	asStruct, ok := containedType.(*parser.StructureTypeType)
+
+	if ok {
+		for _, entry := range asStruct.Entries {
+			whereScope.variableMap[entry.Name] = &VariableReference{entry.Type}
+		}
+	}
+
+	asFn, ok := containedType.(*parser.FunctionTypeType)
+
+	if ok {
+		for _, input := range asFn.Input.Entries {
+			whereScope.variableMap[input.Name] = &VariableReference{input.Type}
+		}
+
+		for _, output := range asFn.Output.Entries {
+			whereScope.variableMap[output.Name] = &VariableReference{output.Type}
+		}
+	}
+
+	_, ok = typeChecker.acceptSubType(where.WhereExp).(*parser.BooleanType)
 
 	if !ok {
 		typeChecker.reportError(where.Begin(), "Where expression must evaluate to a boolean")
