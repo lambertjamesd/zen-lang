@@ -1,0 +1,11 @@
+
+type Range [
+    Min: i32,
+    Max: i32,
+] where Min <= Max
+
+func Bisect[range: Range, at: i32] => [a: Range, b: Range] 
+    where range.Min <= at && at <= range.Max
+{
+    return [range.Min, at], [at, range.Max]
+}

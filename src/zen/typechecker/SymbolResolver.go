@@ -38,9 +38,19 @@ func (symbolResolver *SymbolResolver) VisitUnaryExpression(exp *parser.UnaryExpr
 	exp.Expr.Accept(symbolResolver)
 }
 
+func (symbolResolver *SymbolResolver) VisitPropertyExpression(exp *parser.PropertyExpression) {
+
+}
+
 func (symbolResolver *SymbolResolver) VisitBinaryExpression(exp *parser.BinaryExpression) {
 	exp.Left.Accept(symbolResolver)
 	exp.Right.Accept(symbolResolver)
+}
+
+func (symbolResolver *SymbolResolver) VisitStructureExpression(exp *parser.StructureExpression) {
+	for _, entry := range exp.Entries {
+		entry.Expr.Accept(symbolResolver)
+	}
 }
 
 func (symbolResolver *SymbolResolver) VisitIf(ifStatement *parser.IfStatement) {

@@ -77,7 +77,15 @@ func (constraintChecker *ConstraintChecker) VisitUnaryExpression(exp *parser.Una
 
 }
 
+func (constraintChecker *ConstraintChecker) VisitPropertyExpression(exp *parser.PropertyExpression) {
+
+}
+
 func (constraintChecker *ConstraintChecker) VisitBinaryExpression(exp *parser.BinaryExpression) {
+
+}
+
+func (constraintChecker *ConstraintChecker) VisitStructureExpression(exp *parser.StructureExpression) {
 
 }
 

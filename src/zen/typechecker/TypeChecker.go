@@ -177,6 +177,18 @@ func (typeChecker *TypeChecker) VisitUnaryExpression(exp *parser.UnaryExpression
 	}
 }
 
+func (typeChecker *TypeChecker) VisitPropertyExpression(exp *parser.PropertyExpression) {
+	var structType = typeChecker.acceptSubType(exp.Left)
+	var subType = structType.GetSubType(exp.Property.Value)
+
+	if !parser.IsUndefined(structType) && parser.IsUndefined(subType) {
+		typeChecker.reportError(exp.Property.At, "Property '"+exp.Property.Value+"' does not exist on type")
+	}
+
+	exp.Type = subType
+	typeChecker.pushType(subType)
+}
+
 func (typeChecker *TypeChecker) VisitBinaryExpression(exp *parser.BinaryExpression) {
 	var leftType = typeChecker.acceptSubType(exp.Left)
 	var rightType = typeChecker.acceptSubType(exp.Right)
@@ -227,6 +239,28 @@ func (typeChecker *TypeChecker) VisitBinaryExpression(exp *parser.BinaryExpressi
 		typeChecker.reportError(exp.Operator.At, "Operator '"+exp.Operator.Value+"' not supported")
 		typeChecker.pushType(&parser.UndefinedType{})
 	}
+}
+
+func (typeChecker *TypeChecker) VisitStructureExpression(exp *parser.StructureExpression) {
+	var subEntries []*parser.StructureNamedEntryType = nil
+
+	for _, entry := range exp.Entries {
+		var subType = typeChecker.acceptSubType(entry.Expr)
+		var name string = ""
+
+		if entry.Name != nil {
+			name = entry.Name.Value
+		}
+
+		subEntries = append(subEntries, parser.NewStructureNamedEntryType(
+			name,
+			subType,
+		))
+	}
+
+	var structureType = parser.NewStructureTypeType(subEntries)
+	exp.Type = structureType
+	typeChecker.pushType(structureType)
 }
 
 func (typeChecker *TypeChecker) VisitIf(ifStatement *parser.IfStatement) {

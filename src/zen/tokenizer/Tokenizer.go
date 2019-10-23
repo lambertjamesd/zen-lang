@@ -245,14 +245,18 @@ func Tokenize(src *source.Source) (result TokenizeResult) {
 
 	var _, lastToken = currentState(-1)
 
+	if lastToken != WhitespaceToken {
+		tokens = append(tokens, Token{
+			lastToken,
+			textSource[currentTokenStart:len(textSource)],
+			SourceLocation{
+				src,
+				currentTokenStart,
+			},
+		})
+	}
+
 	tokens = append(tokens, Token{
-		lastToken,
-		textSource[currentTokenStart:len(textSource)],
-		SourceLocation{
-			src,
-			currentTokenStart,
-		},
-	}, Token{
 		EOFToken,
 		"",
 		SourceLocation{

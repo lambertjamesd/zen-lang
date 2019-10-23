@@ -24,7 +24,9 @@ type Visitor interface {
 	VisitIdentifier(id *Identifier)
 	VisitNumber(number *Number)
 	VisitUnaryExpression(exp *UnaryExpression)
+	VisitPropertyExpression(exp *PropertyExpression)
 	VisitBinaryExpression(exp *BinaryExpression)
+	VisitStructureExpression(exp *StructureExpression)
 	VisitFunction(function *Function)
 	VisitIf(ifStatement *IfStatement)
 	VisitBody(body *Body)
@@ -136,6 +138,28 @@ func (node *Number) End() tokenizer.SourceLocation {
 	return node.Token.End()
 }
 
+type PropertyExpression struct {
+	Left     Expression
+	Property *tokenizer.Token
+	Type     TypeNode
+}
+
+func (node *PropertyExpression) Accept(visitor Visitor) {
+	visitor.VisitPropertyExpression(node)
+}
+
+func (node *PropertyExpression) GetType() TypeNode {
+	return node.Type
+}
+
+func (node *PropertyExpression) Begin() tokenizer.SourceLocation {
+	return node.Left.Begin()
+}
+
+func (node *PropertyExpression) End() tokenizer.SourceLocation {
+	return node.Property.End()
+}
+
 type BinaryExpression struct {
 	Left     Expression
 	Operator *tokenizer.Token
@@ -179,6 +203,34 @@ func (node *UnaryExpression) Begin() tokenizer.SourceLocation {
 
 func (node *UnaryExpression) End() tokenizer.SourceLocation {
 	return node.Expr.End()
+}
+
+type StructureExpressionEntry struct {
+	Name *tokenizer.Token
+	Expr Expression
+}
+
+type StructureExpression struct {
+	openBracket  *tokenizer.Token
+	Entries      []StructureExpressionEntry
+	closeBracket *tokenizer.Token
+	Type         *StructureTypeType
+}
+
+func (node *StructureExpression) Accept(visitor Visitor) {
+	visitor.VisitStructureExpression(node)
+}
+
+func (node *StructureExpression) GetType() TypeNode {
+	return node.Type
+}
+
+func (node *StructureExpression) Begin() tokenizer.SourceLocation {
+	return node.openBracket.At
+}
+
+func (node *StructureExpression) End() tokenizer.SourceLocation {
+	return node.closeBracket.End()
 }
 
 type Body struct {

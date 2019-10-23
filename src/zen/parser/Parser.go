@@ -107,6 +107,48 @@ func parseNumber(parseResult *parseResult, state *parseState) (result *Number, o
 	}
 }
 
+func parseStructureExpression(parseResult *parseResult, state *parseState) (result *StructureExpression, okResult bool) {
+	var openBracket = expect(parseResult, state, tokenizer.OpenSqaureToken)
+
+	if openBracket == nil {
+		return nil, false
+	}
+
+	var entries []StructureExpressionEntry = nil
+
+	var hasNext = peek(state, 0).TokenType != tokenizer.CloseSquareToken
+
+	for hasNext {
+		var nameToken *tokenizer.Token = nil
+		if peek(state, 0).TokenType == tokenizer.IDToken && peek(state, 1).TokenType == tokenizer.ColonToken {
+			nameToken = expect(parseResult, state, tokenizer.IDToken)
+			expect(parseResult, state, tokenizer.ColonToken)
+		}
+
+		expression, ok := parseExpression(parseResult, state)
+
+		if !ok {
+			return nil, false
+		}
+
+		entries = append(entries, StructureExpressionEntry{
+			nameToken,
+			expression,
+		})
+
+		hasNext = optional(state, tokenizer.CommaToken) != nil && peek(state, 0).TokenType != tokenizer.CloseSquareToken
+	}
+
+	var closeBracket = expect(parseResult, state, tokenizer.CloseSquareToken)
+
+	return &StructureExpression{
+		openBracket,
+		entries,
+		closeBracket,
+		nil,
+	}, closeBracket != nil
+}
+
 type typeOperatorPrecedence uint
 
 const (
@@ -358,6 +400,38 @@ func getExpressionOperatorPrecedence(token *tokenizer.Token) (result expressionO
 	return noExpressionPrecedence
 }
 
+func isPostfixOperator(token *tokenizer.Token) bool {
+	return token.TokenType == tokenizer.DotToken
+}
+
+func parsePostfixExpression(parseResult *parseResult, state *parseState) (result Expression, okResult bool) {
+	result, ok := parseSingleExpression(parseResult, state)
+
+	if !ok {
+		return nil, false
+	}
+
+	var next = peek(state, 0)
+
+	for isPostfixOperator(next) {
+		if next.TokenType == tokenizer.DotToken {
+			advance(state)
+			var propertyName = expect(parseResult, state, tokenizer.IDToken)
+			result = &PropertyExpression{
+				result,
+				propertyName,
+				&UndefinedType{},
+			}
+		} else {
+			parseResult.errors = append(parseResult.errors, CreateError(next.At, "Unkown postfix operator '"+next.Value+"'"))
+			return result, false
+		}
+		next = peek(state, 0)
+	}
+
+	return result, true
+}
+
 func parseSingleExpression(parseResult *parseResult, state *parseState) (result Expression, okResult bool) {
 	var next = peek(state, 0)
 
@@ -372,6 +446,8 @@ func parseSingleExpression(parseResult *parseResult, state *parseState) (result 
 		result, ok := parseExpression(parseResult, state)
 		ok = ok && expect(parseResult, state, tokenizer.CloseParenToken) != nil
 		return result, ok
+	} else if next.TokenType == tokenizer.OpenSqaureToken {
+		return parseStructureExpression(parseResult, state)
 	} else {
 		advance(state)
 		parseResult.errors = append(parseResult.errors, CreateError(next.At, "Expected expression got '"+next.Value+"'"))
@@ -396,7 +472,7 @@ func parseUnaryExpression(parseResult *parseResult, state *parseState) (result E
 			}, true
 		}
 	} else {
-		return parseSingleExpression(parseResult, state)
+		return parsePostfixExpression(parseResult, state)
 	}
 }
 

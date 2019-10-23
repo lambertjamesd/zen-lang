@@ -12,6 +12,7 @@ const (
 )
 
 type TypeNode interface {
+	GetSubType(name string) TypeNode
 	CanAssignFrom(other TypeNode) bool
 	GetNodeType() TypeNodeType
 	GetWhereExpression() Expression
@@ -34,6 +35,15 @@ func getNextTypeId() int {
 type UndefinedType struct {
 }
 
+func IsUndefined(typeNode TypeNode) bool {
+	_, ok := typeNode.(*UndefinedType)
+	return ok
+}
+
+func (undefinedType *UndefinedType) GetSubType(name string) TypeNode {
+	return undefinedType
+}
+
 func (undefinedType *UndefinedType) CanAssignFrom(other TypeNode) bool {
 	return false
 }
@@ -54,6 +64,10 @@ func (undefinedType *UndefinedType) UniqueId() int {
 }
 
 type VoidType struct {
+}
+
+func (undefinedType *VoidType) GetSubType(name string) TypeNode {
+	return &UndefinedType{}
 }
 
 func (undefinedType *VoidType) CanAssignFrom(other TypeNode) bool {
@@ -92,6 +106,10 @@ func NewIntegerType(bitCount int, isSigned bool) *IntegerType {
 	}
 }
 
+func (integerType *IntegerType) GetSubType(name string) TypeNode {
+	return &UndefinedType{}
+}
+
 func (integerType *IntegerType) CanAssignFrom(other TypeNode) bool {
 	var asNumber, ok = other.(*IntegerType)
 
@@ -125,6 +143,10 @@ func NewBooleanType() *BooleanType {
 	}
 }
 
+func (booleanType *BooleanType) GetSubType(name string) TypeNode {
+	return &UndefinedType{}
+}
+
 func (booleanType *BooleanType) CanAssignFrom(other TypeNode) bool {
 	var _, ok = other.(*BooleanType)
 	return ok
@@ -152,6 +174,14 @@ type StructureNamedEntryType struct {
 	Type     TypeNode
 }
 
+func NewStructureNamedEntryType(name string, typeNode TypeNode) *StructureNamedEntryType {
+	return &StructureNamedEntryType{
+		name,
+		getNextTypeId(),
+		typeNode,
+	}
+}
+
 type StructureTypeType struct {
 	Entries         []*StructureNamedEntryType
 	uniqueId        int
@@ -164,6 +194,16 @@ func NewStructureTypeType(entries []*StructureNamedEntryType) *StructureTypeType
 		getNextTypeId(),
 		&VoidExpression{},
 	}
+}
+
+func (structureType *StructureTypeType) GetSubType(name string) TypeNode {
+	for _, entry := range structureType.Entries {
+		if entry.Name == name {
+			return entry.Type
+		}
+	}
+
+	return &UndefinedType{}
 }
 
 func (structureType *StructureTypeType) CanAssignFrom(other TypeNode) bool {
@@ -216,6 +256,16 @@ func NewFunctionTypeType(input *StructureTypeType, output *StructureTypeType) *F
 		getNextTypeId(),
 		&VoidExpression{},
 	}
+}
+
+func (functionType *FunctionTypeType) GetSubType(name string) TypeNode {
+	if name == "input" {
+		return functionType.Input
+	} else if name == "output" {
+		return functionType.Output
+	}
+
+	return &UndefinedType{}
 }
 
 func (functionType *FunctionTypeType) CanAssignFrom(other TypeNode) bool {
