@@ -167,6 +167,6 @@ func NegateRi64(a RationalNumberi64) RationalNumberi64 {
 	}
 }
 
-func (a RationalNumberi64) Compare(b RationalNumberi64) int32 {
-	return int32(a.Numerator*b.Denominator - b.Numerator*a.Denominator)
+func (a RationalNumberi64) Compare(b RationalNumberi64) int {
+	return int(a.Numerator*b.Denominator - b.Numerator*a.Denominator)
 }

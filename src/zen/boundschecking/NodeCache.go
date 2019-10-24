@@ -1,12 +1,12 @@
 package boundschecking
 
 type NodeCache struct {
-	elements map[int32][]NormalizedNode
+	elements map[int][]NormalizedNode
 }
 
 func NewNodeCache() *NodeCache {
 	return &NodeCache{
-		make(map[int32][]NormalizedNode),
+		make(map[int][]NormalizedNode),
 	}
 }
 

@@ -70,12 +70,12 @@ func (state *NormalizerState) multiplyNodeArrays(a *NormalizedNodeArray, b *Norm
 	var bIndex = 0
 
 	for aIndex < len(a.Array) || bIndex < len(b.Array) {
-		var compareResult = int32(0)
+		var compareResult = 0
 
 		if aIndex == len(a.Array) {
-			compareResult = int32(1)
+			compareResult = 1
 		} else if bIndex == len(b.Array) {
-			compareResult = int32(-1)
+			compareResult = -1
 		} else {
 			compareResult = a.Array[aIndex].Compare(b.Array[bIndex])
 		}
@@ -155,7 +155,7 @@ func (state *NormalizerState) addProductGroups(a []*ProductGroup, b []*ProductGr
 	var bIndex = 0
 
 	for aIndex < len(a) || bIndex < len(b) {
-		var compareResult = int32(0)
+		var compareResult = 0
 
 		if aIndex == len(a) {
 			compareResult = 1
@@ -298,12 +298,12 @@ func (state *NormalizerState) combineAndGroups(a *AndGroup, b *AndGroup) *AndGro
 	var result []*SumGroup = nil
 
 	for aIndex < len(a.SumGroups) || bIndex < len(b.SumGroups) {
-		var compareResult = int32(0)
+		var compareResult = 0
 
 		if aIndex == len(a.SumGroups) {
-			compareResult = int32(1)
+			compareResult = 1
 		} else if bIndex == len(b.SumGroups) {
-			compareResult = int32(-1)
+			compareResult = -1
 		} else {
 			compareResult = a.SumGroups[aIndex].Compare(b.SumGroups[bIndex])
 		}
@@ -340,12 +340,12 @@ func (state *NormalizerState) combineOrGroups(a *OrGroup, b *OrGroup) *OrGroup {
 	var result []*AndGroup = nil
 
 	for aIndex < len(a.AndGroups) || bIndex < len(b.AndGroups) {
-		var compareResult = int32(0)
+		var compareResult = 0
 
 		if aIndex == len(a.AndGroups) {
-			compareResult = int32(1)
+			compareResult = 1
 		} else if bIndex == len(b.AndGroups) {
-			compareResult = int32(-1)
+			compareResult = -1
 		} else {
 			compareResult = a.AndGroups[aIndex].Compare(b.AndGroups[bIndex])
 		}

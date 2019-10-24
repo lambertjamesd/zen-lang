@@ -152,6 +152,35 @@ func (state *NormalizerState) normalizeBinaryExpressionToSumGroup(expression *pa
 	}
 }
 
+func (state *NormalizerState) NormalizeToNode(expression parser.Expression) (result NormalizedNode, err error) {
+	asIdentifier, ok := expression.(*parser.Identifier)
+
+	if ok {
+		return state.nodeCache.GetNodeSingleton(&VariableReference{
+			asIdentifier.Token.Value,
+			state.identfierSourceMapping[asIdentifier.Token.Value].UniqueId,
+		}), nil
+	}
+
+	asProperty, ok := expression.(*parser.PropertyExpression)
+
+	if ok {
+		subNode, err := state.NormalizeToNode(asProperty.Left)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return state.nodeCache.GetNodeSingleton(&PropertyReference{
+			subNode,
+			asProperty.Property.Value,
+			0,
+		}), nil
+	}
+
+	return nil, errors.New("Cannot convert to node")
+}
+
 func (state *NormalizerState) NormalizeToSumGroup(expression parser.Expression) (result *SumGroup, err error) {
 	asBinaryExpression, ok := expression.(*parser.BinaryExpression)
 
@@ -181,18 +210,13 @@ func (state *NormalizerState) NormalizeToSumGroup(expression parser.Expression) 
 		}).(*SumGroup), nil
 	}
 
-	asIdentifier, ok := expression.(*parser.Identifier)
+	asNode, err := state.NormalizeToNode(expression)
 
-	if ok {
-		var varRef = state.nodeCache.GetNodeSingleton(&VariableReference{
-			asIdentifier.Token.Value,
-			state.identfierSourceMapping[asIdentifier.Token.Value].UniqueId,
-		}).(*VariableReference)
-
-		return state.sumGroupFromNode(varRef), nil
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errors.New("Could not convert to sum group")
+	return state.sumGroupFromNode(asNode), nil
 }
 
 func (state *NormalizerState) sumGroupFromNode(node NormalizedNode) *SumGroup {

@@ -6,17 +6,18 @@ import (
 	"zen/zmath"
 )
 
-func JoinHash(a int32, b int32) int32 {
-	var result = int32(17)
+func JoinHash(a int, b int) int {
+	var result = 17
 	result = result*13 + a
 	result = result*13 + b
 	return result
 }
 
-type NormalizedNodeType = int32
+type NormalizedNodeType = int
 
 const (
 	VariableReferenceType NormalizedNodeType = iota
+	PropertyReferenceType
 	ProductGroupType
 	NormalizedNodeArrayType
 	SumGroupType
@@ -25,8 +26,8 @@ const (
 )
 
 type NormalizedNode interface {
-	GetHashCode() int32
-	Compare(other NormalizedNode) int32
+	GetHashCode() int
+	Compare(other NormalizedNode) int
 	GetNormalizedType() NormalizedNodeType
 	ToString(builder *strings.Builder)
 }
@@ -36,15 +37,15 @@ type VariableReference struct {
 	valueId int
 }
 
-func (variableReference *VariableReference) GetHashCode() int32 {
-	return int32(variableReference.valueId)
+func (variableReference *VariableReference) GetHashCode() int {
+	return variableReference.valueId
 }
 
-func (variable *VariableReference) Compare(other NormalizedNode) int32 {
+func (variable *VariableReference) Compare(other NormalizedNode) int {
 	otherAsVariable, ok := other.(*VariableReference)
 
 	if ok {
-		return int32(variable.valueId - otherAsVariable.valueId)
+		return variable.valueId - otherAsVariable.valueId
 	} else {
 		return variable.GetNormalizedType() - other.GetNormalizedType()
 	}
@@ -60,6 +61,50 @@ func (variable *VariableReference) ToString(builder *strings.Builder) {
 	builder.WriteString(strconv.Itoa(variable.valueId))
 }
 
+type PropertyReference struct {
+	Left    NormalizedNode
+	Right   string
+	valueId int
+}
+
+func (propertyReference *PropertyReference) GetHashCode() int {
+	return JoinHash(propertyReference.valueId, propertyReference.Left.GetHashCode())
+}
+
+func (propertyReference *PropertyReference) Compare(other NormalizedNode) int {
+	otherAsProperty, ok := other.(*PropertyReference)
+
+	if ok {
+		var checkResult = propertyReference.valueId - otherAsProperty.valueId
+
+		if checkResult != 0 {
+			return checkResult
+		}
+
+		checkResult = strings.Compare(propertyReference.Right, otherAsProperty.Right)
+
+		if checkResult != 0 {
+			return checkResult
+		}
+
+		return propertyReference.Left.Compare(otherAsProperty.Left)
+	} else {
+		return propertyReference.GetNormalizedType() - other.GetNormalizedType()
+	}
+}
+
+func (propertyReference *PropertyReference) GetNormalizedType() NormalizedNodeType {
+	return PropertyReferenceType
+}
+
+func (propertyReference *PropertyReference) ToString(builder *strings.Builder) {
+	propertyReference.ToString(builder)
+	builder.WriteString(".")
+	builder.WriteString(propertyReference.Right)
+	builder.WriteString("_")
+	builder.WriteString(strconv.Itoa(propertyReference.valueId))
+}
+
 type NormalizedNodeArray struct {
 	Array    []NormalizedNode
 	uniqueID uint32
@@ -70,16 +115,16 @@ type ProductGroup struct {
 	ConstantScalar zmath.RationalNumberi64
 }
 
-func (productGroup *ProductGroup) GetHashCode() int32 {
+func (productGroup *ProductGroup) GetHashCode() int {
 	var result = JoinHash(
-		int32(productGroup.ConstantScalar.Numerator),
-		int32(productGroup.ConstantScalar.Denominator),
+		int(productGroup.ConstantScalar.Numerator),
+		int(productGroup.ConstantScalar.Denominator),
 	)
 
 	return JoinHash(result, productGroup.Values.GetHashCode())
 }
 
-func (productGroup *ProductGroup) Compare(other NormalizedNode) int32 {
+func (productGroup *ProductGroup) Compare(other NormalizedNode) int {
 	otherAsGroup, ok := other.(*ProductGroup)
 
 	if ok {
@@ -113,8 +158,8 @@ func (productGroup *ProductGroup) ToString(builder *strings.Builder) {
 	productGroup.Values.ToString(builder)
 }
 
-func (productGroup *NormalizedNodeArray) GetHashCode() int32 {
-	var result = int32(0)
+func (productGroup *NormalizedNodeArray) GetHashCode() int {
+	var result = 0
 
 	for _, value := range productGroup.Array {
 		result = JoinHash(result, value.GetHashCode())
@@ -123,14 +168,14 @@ func (productGroup *NormalizedNodeArray) GetHashCode() int32 {
 	return result
 }
 
-func (productGroup *NormalizedNodeArray) Compare(other NormalizedNode) int32 {
+func (productGroup *NormalizedNodeArray) Compare(other NormalizedNode) int {
 	asArray, ok := other.(*NormalizedNodeArray)
 
 	if ok {
 		var lengthDiff = len(productGroup.Array) - len(asArray.Array)
 
 		if lengthDiff != 0 {
-			return int32(lengthDiff)
+			return lengthDiff
 		}
 
 		for index, node := range productGroup.Array {
@@ -171,8 +216,8 @@ func (sumGroup *SumGroup) IsZero() bool {
 	return len(sumGroup.ProductGroups) == 0 && sumGroup.ConstantOffset == int64(0)
 }
 
-func (sumGroup *SumGroup) GetHashCode() int32 {
-	var result = int32(sumGroup.ConstantOffset)
+func (sumGroup *SumGroup) GetHashCode() int {
+	var result = int(sumGroup.ConstantOffset)
 
 	for _, node := range sumGroup.ProductGroups {
 		result = JoinHash(result, node.GetHashCode())
@@ -181,7 +226,7 @@ func (sumGroup *SumGroup) GetHashCode() int32 {
 	return result
 }
 
-func (sumGroup *SumGroup) Compare(other NormalizedNode) int32 {
+func (sumGroup *SumGroup) Compare(other NormalizedNode) int {
 	otherAsSumGroup, ok := other.(*SumGroup)
 
 	if ok {
@@ -190,13 +235,13 @@ func (sumGroup *SumGroup) Compare(other NormalizedNode) int32 {
 		}
 
 		if len(sumGroup.ProductGroups) != len(otherAsSumGroup.ProductGroups) {
-			return (int32)(len(sumGroup.ProductGroups) - len(otherAsSumGroup.ProductGroups))
+			return len(sumGroup.ProductGroups) - len(otherAsSumGroup.ProductGroups)
 		}
 
 		scalarCompare := sumGroup.ConstantOffset - otherAsSumGroup.ConstantOffset
 
 		if scalarCompare != 0 {
-			return int32(scalarCompare)
+			return int(scalarCompare)
 		}
 
 		for index, node := range sumGroup.ProductGroups {
@@ -244,8 +289,8 @@ type AndGroup struct {
 	unqiueId  uint32
 }
 
-func (andGroup *AndGroup) GetHashCode() int32 {
-	var result = int32(0)
+func (andGroup *AndGroup) GetHashCode() int {
+	var result = 0
 
 	for _, node := range andGroup.SumGroups {
 		result = JoinHash(result, node.GetHashCode())
@@ -254,7 +299,7 @@ func (andGroup *AndGroup) GetHashCode() int32 {
 	return result
 }
 
-func (andGroup *AndGroup) Compare(other NormalizedNode) int32 {
+func (andGroup *AndGroup) Compare(other NormalizedNode) int {
 	otherAsAndGroup, ok := other.(*AndGroup)
 
 	if ok {
@@ -263,7 +308,7 @@ func (andGroup *AndGroup) Compare(other NormalizedNode) int32 {
 		}
 
 		if len(andGroup.SumGroups) != len(otherAsAndGroup.SumGroups) {
-			return (int32)(len(andGroup.SumGroups) - len(otherAsAndGroup.SumGroups))
+			return len(andGroup.SumGroups) - len(otherAsAndGroup.SumGroups)
 		}
 
 		for index, node := range andGroup.SumGroups {
@@ -302,8 +347,8 @@ type OrGroup struct {
 	AndGroups []*AndGroup
 }
 
-func (orGroup *OrGroup) GetHashCode() int32 {
-	var result = int32(0)
+func (orGroup *OrGroup) GetHashCode() int {
+	var result = 0
 
 	for _, node := range orGroup.AndGroups {
 		result = JoinHash(result, node.GetHashCode())
@@ -312,7 +357,7 @@ func (orGroup *OrGroup) GetHashCode() int32 {
 	return result
 }
 
-func (orGroup *OrGroup) Compare(other NormalizedNode) int32 {
+func (orGroup *OrGroup) Compare(other NormalizedNode) int {
 	otherAsOrGroup, ok := other.(*OrGroup)
 
 	if ok {
@@ -321,7 +366,7 @@ func (orGroup *OrGroup) Compare(other NormalizedNode) int32 {
 		}
 
 		if len(orGroup.AndGroups) != len(otherAsOrGroup.AndGroups) {
-			return (int32)(len(orGroup.AndGroups) - len(otherAsOrGroup.AndGroups))
+			return len(orGroup.AndGroups) - len(otherAsOrGroup.AndGroups)
 		}
 
 		for index, node := range orGroup.AndGroups {
