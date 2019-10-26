@@ -29,9 +29,7 @@ func newFunctionStackFrame(normalizerState *boundschecking.NormalizerState, fnTy
 		result.outputNames = append(result.outputNames, normalizerState.CreateVariableReference(outputType.Name, outputType.UniqueId))
 	}
 
-	result.expressionMapping = make(map[uint32]parser.Expression)
-
-	normalizerState.StartTrackingExpressionMapping(result.expressionMapping)
+	result.expressionMapping = normalizerState.StartTrackingExpressionMapping()
 
 	var conditions = normalizerState.NormalizeToOrGroup(fnType.GetWhereExpression())
 

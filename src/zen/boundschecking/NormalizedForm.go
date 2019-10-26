@@ -45,6 +45,12 @@ func (variable *VariableReference) Compare(other NormalizedNode) int {
 	otherAsVariable, ok := other.(*VariableReference)
 
 	if ok {
+		var compareResult = strings.Compare(variable.Name, otherAsVariable.Name)
+
+		if compareResult != 0 {
+			return compareResult
+		}
+
 		return variable.valueId - otherAsVariable.valueId
 	} else {
 		return variable.GetNormalizedType() - other.GetNormalizedType()
@@ -75,7 +81,7 @@ func (propertyReference *PropertyReference) Compare(other NormalizedNode) int {
 	otherAsProperty, ok := other.(*PropertyReference)
 
 	if ok {
-		var checkResult = propertyReference.valueId - otherAsProperty.valueId
+		var checkResult = propertyReference.Left.Compare(otherAsProperty.Left)
 
 		if checkResult != 0 {
 			return checkResult
@@ -87,7 +93,7 @@ func (propertyReference *PropertyReference) Compare(other NormalizedNode) int {
 			return checkResult
 		}
 
-		return propertyReference.Left.Compare(otherAsProperty.Left)
+		return propertyReference.valueId - otherAsProperty.valueId
 	} else {
 		return propertyReference.GetNormalizedType() - other.GetNormalizedType()
 	}

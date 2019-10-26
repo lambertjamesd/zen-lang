@@ -324,7 +324,7 @@ func (typeChecker *TypeChecker) VisitStructureType(structure *parser.StructureTy
 	for _, entry := range structure.Entries {
 		var subType = &parser.StructureNamedEntryType{
 			entry.Name.Value,
-			entry.Name.At.At,
+			entry.UniqueId,
 			typeChecker.acceptSubType(entry.TypeExp),
 		}
 		entry.Type = subType
@@ -452,15 +452,15 @@ func (typeChecker *TypeChecker) VisitFnDef(fnDef *parser.FunctionDefinition) {
 }
 
 func (typeChecker *TypeChecker) VisitFile(fileDef *parser.FileDefinition) {
-	typeChecker.createScope().initializeDefaultTypes()
 	for _, definition := range fileDef.Definitions {
 		typeChecker.acceptSubType(definition)
 	}
-	typeChecker.popScope()
 }
 
 func CheckTypes(parseNode parser.ParseNode) []parser.ParseError {
 	var checker = CreateTypeChecker()
+	checker.createScope().initializeDefaultTypes()
 	parseNode.Accept(checker)
+	checker.popScope()
 	return checker.errors
 }

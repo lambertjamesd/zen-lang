@@ -60,6 +60,7 @@ type Expression interface {
 
 type TypeExpression interface {
 	ParseNode
+	GetType() TypeNode
 }
 
 type TypeSymbolDefinition interface {
@@ -302,10 +303,15 @@ func (node *NamedType) End() tokenizer.SourceLocation {
 	return node.Token.End()
 }
 
+func (node *NamedType) GetType() TypeNode {
+	return node.Type
+}
+
 type StructureNamedEntry struct {
-	Name    *tokenizer.Token
-	TypeExp TypeExpression
-	Type    *StructureNamedEntryType
+	Name     *tokenizer.Token
+	TypeExp  TypeExpression
+	Type     *StructureNamedEntryType
+	UniqueId int
 }
 
 func (node *StructureNamedEntry) Begin() tokenizer.SourceLocation {
@@ -339,6 +345,10 @@ func (node *StructureType) End() tokenizer.SourceLocation {
 	return node.close.End()
 }
 
+func (node *StructureType) GetType() TypeNode {
+	return node.Type
+}
+
 type FunctionType struct {
 	Input  TypeExpression
 	Output TypeExpression
@@ -357,6 +367,10 @@ func (node *FunctionType) End() tokenizer.SourceLocation {
 	return node.Output.End()
 }
 
+func (node *FunctionType) GetType() TypeNode {
+	return node.Type
+}
+
 type WhereType struct {
 	whereKeyword *tokenizer.Token
 	TypeExp      TypeExpression
@@ -373,6 +387,10 @@ func (node *WhereType) Begin() tokenizer.SourceLocation {
 
 func (node *WhereType) End() tokenizer.SourceLocation {
 	return node.WhereExp.End()
+}
+
+func (node *WhereType) GetType() TypeNode {
+	return node.TypeExp.GetType()
 }
 
 type AsNamingType struct {

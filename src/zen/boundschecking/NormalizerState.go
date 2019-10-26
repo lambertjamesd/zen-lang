@@ -33,8 +33,9 @@ func (state *NormalizerState) recordExpressionMapping(sumGroup *SumGroup, expres
 	return sumGroup
 }
 
-func (state *NormalizerState) StartTrackingExpressionMapping(useMapping map[uint32]parser.Expression) {
-	state.currentExpressionMapping = useMapping
+func (state *NormalizerState) StartTrackingExpressionMapping() map[uint32]parser.Expression {
+	state.currentExpressionMapping = make(map[uint32]parser.Expression)
+	return state.currentExpressionMapping
 }
 
 func (state *NormalizerState) StopTrackingExpressionMapping() {
@@ -291,38 +292,47 @@ func (state *NormalizerState) multiplySumGroups(a *SumGroup, b *SumGroup) *SumGr
 	}).(*SumGroup)
 }
 
-func (state *NormalizerState) combineAndGroups(a *AndGroup, b *AndGroup) *AndGroup {
+func ZipSumGroups(a []*SumGroup, b []*SumGroup) []*SumGroup {
+	if len(a) == 0 {
+		return b
+	} else if len(b) == 0 {
+		return a
+	}
 	var aIndex = 0
 	var bIndex = 0
 
 	var result []*SumGroup = nil
 
-	for aIndex < len(a.SumGroups) || bIndex < len(b.SumGroups) {
+	for aIndex < len(a) || bIndex < len(b) {
 		var compareResult = 0
 
-		if aIndex == len(a.SumGroups) {
+		if aIndex == len(a) {
 			compareResult = 1
-		} else if bIndex == len(b.SumGroups) {
+		} else if bIndex == len(b) {
 			compareResult = -1
 		} else {
-			compareResult = a.SumGroups[aIndex].Compare(b.SumGroups[bIndex])
+			compareResult = a[aIndex].Compare(b[bIndex])
 		}
 
 		if compareResult == 0 {
-			result = append(result, a.SumGroups[aIndex])
+			result = append(result, a[aIndex])
 			aIndex = aIndex + 1
 			bIndex = bIndex + 1
 		} else if compareResult < 0 {
-			result = append(result, a.SumGroups[aIndex])
+			result = append(result, a[aIndex])
 			aIndex = aIndex + 1
 		} else {
-			result = append(result, b.SumGroups[bIndex])
+			result = append(result, b[bIndex])
 			bIndex = bIndex + 1
 		}
 	}
 
+	return result
+}
+
+func (state *NormalizerState) combineAndGroups(a *AndGroup, b *AndGroup) *AndGroup {
 	return state.nodeCache.GetNodeSingleton(&AndGroup{
-		result,
+		ZipSumGroups(a.SumGroups, b.SumGroups),
 		state.getNextUniqueId(),
 	}).(*AndGroup)
 }
@@ -438,6 +448,28 @@ func (state *NormalizerState) CreateEquality(sumGroups *SumGroup, id NormalizedN
 	}
 }
 
+func (state *NormalizerState) CreateNormalizedNodeArray(nodes []NormalizedNode) *NormalizedNodeArray {
+	return state.nodeCache.GetNodeSingleton(&NormalizedNodeArray{
+		nodes,
+		state.getNextUniqueId(),
+	}).(*NormalizedNodeArray)
+}
+
+func (state *NormalizerState) CreateProductGroup(nodes []NormalizedNode, constantScalar zmath.RationalNumberi64) *ProductGroup {
+	return state.nodeCache.GetNodeSingleton(&ProductGroup{
+		state.CreateNormalizedNodeArray(nodes),
+		constantScalar,
+	}).(*ProductGroup)
+}
+
+func (state *NormalizerState) CreateSumGroup(productGroups []*ProductGroup, constantOffset int64) *SumGroup {
+	return state.nodeCache.GetNodeSingleton(&SumGroup{
+		productGroups,
+		constantOffset,
+		state.getNextUniqueId(),
+	}).(*SumGroup)
+}
+
 func (state *NormalizerState) CreateAndGroup(sumGroups []*SumGroup) *AndGroup {
 	if len(sumGroups) == 0 {
 		return nil
@@ -464,4 +496,12 @@ func (state *NormalizerState) CreateVariableReference(name string, at int) *Vari
 		name,
 		at,
 	}).(*VariableReference)
+}
+
+func (state *NormalizerState) CreatePropertyReference(left NormalizedNode, right string, at int) *PropertyReference {
+	return state.nodeCache.GetNodeSingleton(&PropertyReference{
+		left,
+		right,
+		at,
+	}).(*PropertyReference)
 }

@@ -288,7 +288,7 @@ func parseStructureType(parseResult *parseResult, state *parseState) (result *St
 				return nil
 			}
 
-			entries = append(entries, &StructureNamedEntry{nil, typeExp, nil})
+			entries = append(entries, &StructureNamedEntry{nil, typeExp, nil, getNextTypeId()})
 
 			hasNext = checkHasNext(state, tokenizer.CloseSquareToken)
 		}
@@ -313,7 +313,7 @@ func parseStructureType(parseResult *parseResult, state *parseState) (result *St
 			return nil
 		}
 
-		entries = append(entries, &StructureNamedEntry{name, typeExp, nil})
+		entries = append(entries, &StructureNamedEntry{name, typeExp, nil, getNextTypeId()})
 
 		hasNext = checkHasNext(state, tokenizer.CloseSquareToken)
 	}
@@ -762,4 +762,12 @@ func ParseTest(sourceString string) (result Expression, okResult bool) {
 	var parseResult = createParseResult()
 
 	return parseExpression(&parseResult, &state)
+}
+
+func ParseTypeTest(sourceString string) (result TypeExpression, okResult bool) {
+	var tokens = tokenizer.Tokenize(source.SourceFromString(sourceString))
+	var state = createState(&tokens)
+	var parseResult = createParseResult()
+
+	return parseType(&parseResult, &state)
 }
