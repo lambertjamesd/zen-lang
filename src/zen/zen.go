@@ -21,7 +21,7 @@ func checkErrors(errors []parser.ParseError) bool {
 }
 
 func main() {
-	source, err := source.SourceFromFile("../../test/Range.zen")
+	source, err := source.SourceFromFile("../../test/Min.zen")
 
 	if err != nil {
 		log.Fatalf("Error loading source %s", err)

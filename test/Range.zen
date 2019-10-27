@@ -10,6 +10,14 @@ type Foo [
     c: i32,
 ] where a < b && b < c
 
+func MakeRange[a: i32, b: i32] => [result: Range] {
+    if (a < b) {
+        return [a, b]
+    } else {
+        return [b, a]
+    }
+}
+
 func Bisect[range: Range, at: i32] => [a: Range, b: Range] 
     where range.Min <= at && at <= range.Max
 {
