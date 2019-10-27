@@ -10,7 +10,7 @@ where `a_n` are integers and `x_n` are the product of one or more variables. Her
 
 |Basic form|Normalized Form|
 |----------|---------------|
-| a >= b   | a - b >-= 0   |
+| a >= b   | a - b >= 0   |
 | a > b    | a - b - 1 >= 0 |
 | a == b   | a - b >= 0 && -a + b >= 0 |
 | a != b   | a - b - 1 >= 0 \|\| -a + b - 1 >= 0 |
