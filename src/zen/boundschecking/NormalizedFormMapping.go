@@ -1,20 +1,34 @@
 package boundschecking
 
-func (orGroup *OrGroup) MapNodes(state *NormalizerState, mapping map[int]int) *OrGroup {
+import "zen/parser"
+
+func (orGroup *OrGroup) MapNodes(
+	state *NormalizerState,
+	mapping map[int]int,
+	exprMapping map[uint32]parser.Expression,
+	intoExprMapping map[uint32]parser.Expression,
+) *OrGroup {
 	var result []*AndGroup = make([]*AndGroup, len(orGroup.AndGroups))
 
 	for index, productGroup := range orGroup.AndGroups {
-		result[index] = productGroup.MapNodes(state, mapping)
+		result[index] = productGroup.MapNodes(state, mapping, exprMapping, intoExprMapping)
 	}
 
 	return state.CreateOrGroup(result)
 }
 
-func (andGroup *AndGroup) MapNodes(state *NormalizerState, mapping map[int]int) *AndGroup {
+func (andGroup *AndGroup) MapNodes(
+	state *NormalizerState,
+	mapping map[int]int,
+	exprMapping map[uint32]parser.Expression,
+	intoExprMapping map[uint32]parser.Expression,
+) *AndGroup {
 	var result []*SumGroup = make([]*SumGroup, len(andGroup.SumGroups))
 
 	for index, sumGroup := range andGroup.SumGroups {
-		result[index] = sumGroup.MapNodes(state, mapping)
+		var migratedSum = sumGroup.MapNodes(state, mapping)
+		intoExprMapping[migratedSum.uniqueId] = exprMapping[sumGroup.uniqueId]
+		result[index] = migratedSum
 	}
 
 	return state.CreateAndGroup(result)

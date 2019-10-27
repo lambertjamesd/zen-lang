@@ -11,14 +11,18 @@ type ConstraintChecker struct {
 	functionStack     []*functionStackFrame
 	normalizerState   *boundschecking.NormalizerState
 	errors            []parser.ParseError
+	typeDiffer        *TypeConstraintDifferCache
 }
 
 func NewConstrantChecker() *ConstraintChecker {
+	var normalizerState = boundschecking.NewNormalizerState()
+
 	return &ConstraintChecker{
 		nil,
 		nil,
-		boundschecking.NewNormalizerState(),
+		normalizerState,
 		nil,
+		NewTypeConstraintDifferCache(normalizerState),
 	}
 }
 
@@ -229,10 +233,40 @@ func (constraintChecker *ConstraintChecker) VisitFunctionType(fn *parser.Functio
 }
 
 func (constraintChecker *ConstraintChecker) VisitWhereType(where *parser.WhereType) {
+	where.TypeExp.Accept(constraintChecker)
 
+	contradictionCheck, err := constraintChecker.typeDiffer.GetConstraintsForType(where.TypeExp.GetType())
+
+	if err != nil {
+		constraintChecker.reportErrorMessage(where.WhereExp.Begin(), err.Error())
+	} else if len(contradictionCheck.contradictions) > 0 {
+		var contradictionLocations []parser.ParseError = nil
+		var useLocation = where.WhereExp.Begin()
+
+		for index, contradiction := range contradictionCheck.contradictions {
+			mappedExpression, ok := contradictionCheck.expressionMapping[contradiction.GetUniqueId()]
+
+			if ok {
+				if index == len(contradictionCheck.contradictions)-1 {
+					useLocation = mappedExpression.Begin()
+				} else {
+					contradictionLocations = append(contradictionLocations, parser.CreateError(mappedExpression.Begin(), ""))
+				}
+			} else {
+				contradictionLocations = append(contradictionLocations, parser.CreateError(where.WhereExp.Begin(), boundschecking.ToString(contradiction)+"\n"))
+			}
+		}
+
+		constraintChecker.reportError(parser.CreateErrorWithMultipleLocations(
+			useLocation,
+			"Contradictions in where expression",
+			contradictionLocations,
+		))
+	}
 }
 
 func (constraintChecker *ConstraintChecker) VisitTypeDef(typeDef *parser.TypeDefinition) {
+	typeDef.TypeExp.Accept(constraintChecker)
 }
 
 func (constraintChecker *ConstraintChecker) VisitFnDef(fnDef *parser.FunctionDefinition) {

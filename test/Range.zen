@@ -4,6 +4,12 @@ type Range [
     Max: i32,
 ] where Min <= Max
 
+type Foo [
+    a: i32,
+    b: i32,
+    c: i32,
+] where a < b && b < c
+
 func Bisect[range: Range, at: i32] => [a: Range, b: Range] 
     where range.Min <= at && at <= range.Max
 {

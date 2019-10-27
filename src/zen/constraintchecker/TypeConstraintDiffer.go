@@ -21,6 +21,7 @@ type TypeConstraints struct {
 
 type TypeConstraintDiff struct {
 	additionalConstrants *boundschecking.OrGroup
+	expressionMapping    map[uint32]parser.Expression
 }
 
 type TypeConstraintDifferCache struct {
@@ -155,7 +156,7 @@ func (typeConstraintCache *TypeConstraintDifferCache) GetTypeDiff(from parser.Ty
 
 func (typeConstraintCache *TypeConstraintDifferCache) createTypeDiff(from parser.TypeNode, to parser.TypeNode) (TypeConstraintDiff, error) {
 	if from == to {
-		return TypeConstraintDiff{nil}, nil
+		return TypeConstraintDiff{}, nil
 	}
 
 	fromConstraints, err := typeConstraintCache.GetConstraintsForType(from)
@@ -172,7 +173,13 @@ func (typeConstraintCache *TypeConstraintDifferCache) createTypeDiff(from parser
 
 	var variableMapping = getVariableMapping(toConstraints.variables, fromConstraints.variables)
 
-	var toConstraintsInFromSpace = toConstraints.constraints.MapNodes(typeConstraintCache.state, variableMapping)
+	var exprMapping = make(map[uint32]parser.Expression)
+	var toConstraintsInFromSpace = toConstraints.constraints.MapNodes(
+		typeConstraintCache.state,
+		variableMapping,
+		toConstraints.expressionMapping,
+		exprMapping,
+	)
 	var constraintsDiff []*boundschecking.AndGroup = nil
 
 	if toConstraintsInFromSpace != nil {
@@ -191,6 +198,7 @@ func (typeConstraintCache *TypeConstraintDifferCache) createTypeDiff(from parser
 
 	return TypeConstraintDiff{
 		typeConstraintCache.state.CreateOrGroup(constraintsDiff),
+		exprMapping,
 	}, nil
 }
 
